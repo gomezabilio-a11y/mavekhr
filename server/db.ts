@@ -11,6 +11,11 @@ import {
   evaluationTasks,
   announcements, InsertAnnouncement,
   employeeDocuments,
+  evaluationForms, InsertEvaluationForm,
+  formCategories, InsertFormCategory,
+  formKpis, InsertFormKpi,
+  evaluationResponses,
+  kpiResponses,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -294,4 +299,156 @@ export async function deleteEmployeeDocument(id: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   await db.delete(employeeDocuments).where(eq(employeeDocuments.id, id));
+}
+
+// ─── Evaluation Forms ─────────────────────────────────────────────────────────
+export async function getAllEvaluationForms() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(evaluationForms).orderBy(evaluationForms.formType);
+}
+
+export async function getEvaluationFormByType(formType: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(evaluationForms)
+    .where(eq(evaluationForms.formType, formType as any)).limit(1);
+  return result[0];
+}
+
+export async function getEvaluationFormById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(evaluationForms).where(eq(evaluationForms.id, id)).limit(1);
+  return result[0];
+}
+
+export async function upsertEvaluationForm(data: InsertEvaluationForm) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.insert(evaluationForms).values(data).onDuplicateKeyUpdate({
+    set: { title: data.title, description: data.description, isActive: data.isActive, updatedAt: new Date() },
+  });
+}
+
+export async function updateEvaluationForm(id: number, data: Partial<InsertEvaluationForm>) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(evaluationForms).set({ ...data, updatedAt: new Date() }).where(eq(evaluationForms.id, id));
+}
+
+// ─── Form Categories ──────────────────────────────────────────────────────────
+export async function getCategoriesByFormId(formId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(formCategories)
+    .where(eq(formCategories.formId, formId))
+    .orderBy(formCategories.sortOrder);
+}
+
+export async function createFormCategory(data: InsertFormCategory) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.insert(formCategories).values(data);
+  return result;
+}
+
+export async function updateFormCategory(id: number, data: Partial<InsertFormCategory>) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(formCategories).set({ ...data, updatedAt: new Date() }).where(eq(formCategories.id, id));
+}
+
+export async function deleteFormCategory(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  // Delete KPIs first
+  await db.delete(formKpis).where(eq(formKpis.categoryId, id));
+  await db.delete(formCategories).where(eq(formCategories.id, id));
+}
+
+// ─── Form KPIs ────────────────────────────────────────────────────────────────
+export async function getKpisByCategoryId(categoryId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(formKpis)
+    .where(eq(formKpis.categoryId, categoryId))
+    .orderBy(formKpis.sortOrder);
+}
+
+export async function getKpisByFormId(formId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  // Join through categories
+  const cats = await getCategoriesByFormId(formId);
+  if (cats.length === 0) return [];
+  const catIds = cats.map(c => c.id);
+  return db.select().from(formKpis)
+    .where(sql`${formKpis.categoryId} IN (${sql.join(catIds.map(id => sql`${id}`), sql`, `)})`)
+    .orderBy(formKpis.categoryId, formKpis.sortOrder);
+}
+
+export async function createFormKpi(data: InsertFormKpi) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.insert(formKpis).values(data);
+}
+
+export async function updateFormKpi(id: number, data: Partial<InsertFormKpi>) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(formKpis).set({ ...data, updatedAt: new Date() }).where(eq(formKpis.id, id));
+}
+
+export async function deleteFormKpi(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.delete(formKpis).where(eq(formKpis.id, id));
+}
+
+// ─── Evaluation Responses ─────────────────────────────────────────────────────
+export async function getResponseByTaskId(taskId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(evaluationResponses)
+    .where(eq(evaluationResponses.taskId, taskId)).limit(1);
+  return result[0];
+}
+
+export async function createEvaluationResponse(
+  responseData: typeof evaluationResponses.$inferInsert,
+  kpiData: Array<typeof kpiResponses.$inferInsert>
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+
+  // Prevent duplicate submissions: check if a response already exists for this task
+  if (responseData.taskId) {
+    const existing = await db.select().from(evaluationResponses)
+      .where(eq(evaluationResponses.taskId, responseData.taskId)).limit(1);
+    if (existing.length > 0) {
+      throw new Error("Evaluation for this task has already been submitted.");
+    }
+  }
+
+  const insertResult = await db.insert(evaluationResponses).values(responseData);
+  const responseId = (insertResult as any)[0]?.insertId ?? (insertResult as any).insertId;
+  if (kpiData.length > 0) {
+    await db.insert(kpiResponses).values(kpiData.map(k => ({ ...k, responseId })));
+  }
+
+  // Mark the evaluation task as completed
+  if (responseData.taskId) {
+    await db.update(evaluationTasks)
+      .set({ status: "completed", submittedAt: new Date() })
+      .where(eq(evaluationTasks.id, responseData.taskId));
+  }
+
+  return responseId;
+}
+
+export async function getKpiResponsesByResponseId(responseId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(kpiResponses).where(eq(kpiResponses.responseId, responseId));
 }

@@ -41,6 +41,8 @@ export type OrgUnit = typeof orgUnits.$inferSelect;
 export type InsertOrgUnit = typeof orgUnits.$inferInsert;
 
 // ─── Employees ────────────────────────────────────────────────────────────────
+// employeeRole: "regular" = full employee (self + peer + manager eval)
+//               "contractor" = contractor (peer eval only, no self-eval)
 export const employees = mysqlTable("employees", {
   id: int("id").autoincrement().primaryKey(),
   employeeCode: varchar("employeeCode", { length: 32 }).notNull().unique(),
@@ -50,6 +52,7 @@ export const employees = mysqlTable("employees", {
   phone: varchar("phone", { length: 32 }),
   nationality: varchar("nationality", { length: 64 }),
   position: varchar("position", { length: 128 }).notNull(),
+  employeeRole: mysqlEnum("employeeRole", ["regular", "contractor"]).default("regular").notNull(),
   employmentType: mysqlEnum("employmentType", ["full-time", "part-time", "contract", "intern"]).default("full-time").notNull(),
   workLocation: varchar("workLocation", { length: 128 }),
   startDate: date("startDate").notNull(),
@@ -133,7 +136,7 @@ export const evaluationTasks = mysqlTable("evaluation_tasks", {
   cycleId: int("cycleId").notNull(),
   evaluatorId: int("evaluatorId").notNull(),
   evaluateeId: int("evaluateeId").notNull(),
-  type: mysqlEnum("type", ["self", "peer", "manager"]).notNull(),
+  type: mysqlEnum("type", ["self", "peer", "manager", "contractor"]).notNull(),
   status: mysqlEnum("status", ["pending", "in-progress", "completed"]).default("pending").notNull(),
   submittedAt: timestamp("submittedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -169,3 +172,84 @@ export const employeeDocuments = mysqlTable("employee_documents", {
 });
 
 export type EmployeeDocument = typeof employeeDocuments.$inferSelect;
+
+// ─── Evaluation Form Templates ────────────────────────────────────────────────
+// formType:
+//   "self_regular"   = Self Evaluation for Regular Employees
+//   "self_manager"   = Self Evaluation for Managers
+//   "peer"           = Peer Evaluation (evaluating a colleague)
+//   "manager_eval"   = Manager Evaluation (manager evaluating a direct report)
+//   "contractor"     = Contractor Evaluation (peer evaluating a contractor)
+export const evaluationForms = mysqlTable("evaluation_forms", {
+  id: int("id").autoincrement().primaryKey(),
+  formType: mysqlEnum("formType", [
+    "self_regular",
+    "self_manager",
+    "peer",
+    "manager_eval",
+    "contractor",
+  ]).notNull().unique(),
+  title: varchar("title", { length: 256 }).notNull(),
+  description: text("description"),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type EvaluationForm = typeof evaluationForms.$inferSelect;
+export type InsertEvaluationForm = typeof evaluationForms.$inferInsert;
+
+// ─── Form Categories (대분류) ──────────────────────────────────────────────────
+export const formCategories = mysqlTable("form_categories", {
+  id: int("id").autoincrement().primaryKey(),
+  formId: int("formId").notNull(),
+  title: varchar("title", { length: 256 }).notNull(),     // e.g. "1 Integrity (10%)"
+  weight: int("weight").notNull().default(0),              // e.g. 10 (%)
+  purpose: text("purpose"),                                // a. Purpose
+  definition: text("definition"),                          // b. Definition
+  sortOrder: int("sortOrder").notNull().default(0),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type FormCategory = typeof formCategories.$inferSelect;
+export type InsertFormCategory = typeof formCategories.$inferInsert;
+
+// ─── Form KPIs (개별 질문) ─────────────────────────────────────────────────────
+export const formKpis = mysqlTable("form_kpis", {
+  id: int("id").autoincrement().primaryKey(),
+  categoryId: int("categoryId").notNull(),
+  kpiName: varchar("kpiName", { length: 256 }).notNull(),   // e.g. "Honesty & Transparency"
+  question: text("question").notNull(),                      // Full question text
+  sortOrder: int("sortOrder").notNull().default(0),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type FormKpi = typeof formKpis.$inferSelect;
+export type InsertFormKpi = typeof formKpis.$inferInsert;
+
+// ─── Evaluation Responses (제출된 평가지) ─────────────────────────────────────
+export const evaluationResponses = mysqlTable("evaluation_responses", {
+  id: int("id").autoincrement().primaryKey(),
+  taskId: int("taskId").notNull(),
+  formId: int("formId").notNull(),
+  evaluatorId: int("evaluatorId").notNull(),
+  evaluateeId: int("evaluateeId").notNull(),
+  overallComment: text("overallComment"),
+  submittedAt: timestamp("submittedAt").defaultNow().notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type EvaluationResponse = typeof evaluationResponses.$inferSelect;
+
+// ─── KPI Responses (개별 질문 응답) ───────────────────────────────────────────
+export const kpiResponses = mysqlTable("kpi_responses", {
+  id: int("id").autoincrement().primaryKey(),
+  responseId: int("responseId").notNull(),
+  kpiId: int("kpiId").notNull(),
+  score: int("score").notNull(),   // 1 ~ 5
+  comment: text("comment"),
+});
+
+export type KpiResponse = typeof kpiResponses.$inferSelect;

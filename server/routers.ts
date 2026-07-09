@@ -13,6 +13,10 @@ import {
   getEvaluationCycles, getEvaluationTasksForEmployee,
   getAnnouncements, getAllAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement,
   getEmployeeDocuments, createEmployeeDocument, deleteEmployeeDocument,
+  getAllEvaluationForms, getEvaluationFormById, getEvaluationFormByType, updateEvaluationForm, upsertEvaluationForm,
+  getCategoriesByFormId, createFormCategory, updateFormCategory, deleteFormCategory,
+  getKpisByCategoryId, createFormKpi, updateFormKpi, deleteFormKpi,
+  getResponseByTaskId, createEvaluationResponse, getKpiResponsesByResponseId,
 } from "./db";
 
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -224,6 +228,145 @@ export const appRouter = router({
     delete: adminProcedure
       .input(z.object({ id: z.number() }))
       .mutation(({ input }) => deleteEmployeeDocument(input.id)),
+  }),
+
+  // ─── Evaluation Form Builder ───────────────────────────────────────────────
+  evalForm: router({
+    // List all 5 form templates
+    listAll: protectedProcedure.query(() => getAllEvaluationForms()),
+    // Get a single form with its categories and KPIs
+    getWithContent: protectedProcedure
+      .input(z.object({ formId: z.number() }))
+      .query(async ({ input }) => {
+        const form = await getEvaluationFormById(input.formId);
+        if (!form) return null;
+        const categories = await getCategoriesByFormId(input.formId);
+        const categoriesWithKpis = await Promise.all(
+          categories.map(async (cat) => {
+            const kpis = await getKpisByCategoryId(cat.id);
+            return { ...cat, kpis };
+          })
+        );
+        return { ...form, categories: categoriesWithKpis };
+      }),
+    // Get form by type (for employee portal)
+    getByType: publicProcedure
+      .input(z.object({ formType: z.string() }))
+      .query(async ({ input }) => {
+        const form = await getEvaluationFormByType(input.formType);
+        if (!form) return null;
+        const categories = await getCategoriesByFormId(form.id);
+        const categoriesWithKpis = await Promise.all(
+          categories.map(async (cat) => {
+            const kpis = await getKpisByCategoryId(cat.id);
+            return { ...cat, kpis };
+          })
+        );
+        return { ...form, categories: categoriesWithKpis };
+      }),
+    // Upsert form metadata (admin)
+    upsert: adminProcedure
+      .input(z.object({
+        formType: z.enum(["self_regular", "self_manager", "peer", "manager_eval", "contractor"]),
+        title: z.string().min(1),
+        description: z.string().optional(),
+        isActive: z.boolean().default(true),
+      }))
+      .mutation(({ input }) => upsertEvaluationForm(input as any)),
+    updateMeta: adminProcedure
+      .input(z.object({
+        id: z.number(),
+        title: z.string().optional(),
+        description: z.string().optional(),
+        isActive: z.boolean().optional(),
+      }))
+      .mutation(({ input }) => { const { id, ...data } = input; return updateEvaluationForm(id, data); }),
+  }),
+
+  // ─── Form Categories ───────────────────────────────────────────────────────
+  formCategory: router({
+    listByForm: protectedProcedure
+      .input(z.object({ formId: z.number() }))
+      .query(({ input }) => getCategoriesByFormId(input.formId)),
+    create: adminProcedure
+      .input(z.object({
+        formId: z.number(),
+        title: z.string().min(1),
+        weight: z.number().min(0).max(100).default(0),
+        purpose: z.string().optional(),
+        definition: z.string().optional(),
+        sortOrder: z.number().default(0),
+      }))
+      .mutation(({ input }) => createFormCategory(input as any)),
+    update: adminProcedure
+      .input(z.object({
+        id: z.number(),
+        title: z.string().optional(),
+        weight: z.number().min(0).max(100).optional(),
+        purpose: z.string().optional(),
+        definition: z.string().optional(),
+        sortOrder: z.number().optional(),
+      }))
+      .mutation(({ input }) => { const { id, ...data } = input; return updateFormCategory(id, data as any); }),
+    delete: adminProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(({ input }) => deleteFormCategory(input.id)),
+  }),
+
+  // ─── Form KPIs ─────────────────────────────────────────────────────────────
+  formKpi: router({
+    listByCategory: protectedProcedure
+      .input(z.object({ categoryId: z.number() }))
+      .query(({ input }) => getKpisByCategoryId(input.categoryId)),
+    create: adminProcedure
+      .input(z.object({
+        categoryId: z.number(),
+        kpiName: z.string().min(1),
+        question: z.string().min(1),
+        sortOrder: z.number().default(0),
+      }))
+      .mutation(({ input }) => createFormKpi(input as any)),
+    update: adminProcedure
+      .input(z.object({
+        id: z.number(),
+        kpiName: z.string().optional(),
+        question: z.string().optional(),
+        sortOrder: z.number().optional(),
+      }))
+      .mutation(({ input }) => { const { id, ...data } = input; return updateFormKpi(id, data as any); }),
+    delete: adminProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(({ input }) => deleteFormKpi(input.id)),
+  }),
+
+  // ─── Evaluation Responses ──────────────────────────────────────────────────
+  evalResponse: router({
+    getByTask: protectedProcedure
+      .input(z.object({ taskId: z.number() }))
+      .query(({ input }) => getResponseByTaskId(input.taskId)),
+    submit: protectedProcedure
+      .input(z.object({
+        taskId: z.number(),
+        formId: z.number(),
+        evaluatorId: z.number(),
+        evaluateeId: z.number(),
+        overallComment: z.string().optional(),
+        kpiScores: z.array(z.object({
+          kpiId: z.number(),
+          score: z.number().min(1).max(5),
+          comment: z.string().optional(),
+        })),
+      }))
+      .mutation(async ({ input }) => {
+        const { kpiScores, ...responseData } = input;
+        return createEvaluationResponse(
+          { ...responseData, submittedAt: new Date(), createdAt: new Date() },
+          kpiScores.map(k => ({ ...k, responseId: 0 }))
+        );
+      }),
+    kpiAnswers: protectedProcedure
+      .input(z.object({ responseId: z.number() }))
+      .query(({ input }) => getKpiResponsesByResponseId(input.responseId)),
   }),
 });
 

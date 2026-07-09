@@ -39,5 +39,12 @@
 
 ## Pending
 - [ ] Employee portal pages connected to real DB data (currently using mockData.ts)
-- [ ] Evaluation form (to be provided by user)
 - [ ] Menus 8–12 full implementation
+
+## Evaluation Form Builder (New)
+- [x] DB schema: employeeRole enum (regular/contractor), evaluationForms, formCategories, formKpis, evaluationResponses, kpiResponses tables
+- [x] DB migration (15 tables total)
+- [x] tRPC procedures: evaluationForm CRUD, formCategory CRUD, formKpi CRUD, submitEvaluationResponse
+- [x] Admin: Evaluation Form Builder page (5 form types, category/KPI editor)
+- [x] Employee portal: Periodic Evaluation page shows real form with 1-5 scoring
+- [x] Contractor: no self-evaluation, only peer evaluation available

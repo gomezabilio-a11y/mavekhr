@@ -14,6 +14,7 @@ type EmployeeForm = {
   nationality: string;
   position: string;
   employmentType: "full-time" | "part-time" | "contract" | "intern";
+  employeeRole: "regular" | "contractor";
   workLocation: string;
   startDate: string;
   contractEndDate: string;
@@ -28,7 +29,7 @@ type EmployeeForm = {
 const emptyForm: EmployeeForm = {
   employeeCode: "", firstName: "", lastName: "", email: "",
   phone: "", nationality: "", position: "",
-  employmentType: "full-time", workLocation: "", startDate: "",
+  employmentType: "full-time", employeeRole: "regular", workLocation: "", startDate: "",
   contractEndDate: "", status: "active", orgUnitId: "", managerId: "",
   isManager: false, photoUrl: "", emergencyContact: "",
 };
@@ -86,6 +87,7 @@ export default function AdminEmployees() {
       orgUnitId: emp.orgUnitId?.toString() ?? "",
       managerId: emp.managerId?.toString() ?? "",
       isManager: emp.isManager,
+      employeeRole: (emp as any).employeeRole ?? "regular",
       photoUrl: emp.photoUrl ?? "",
       emergencyContact: emp.emergencyContact ?? "",
     });
@@ -283,6 +285,14 @@ export default function AdminEmployees() {
                     <option value="part-time">Part-Time</option>
                     <option value="contract">Contract</option>
                     <option value="intern">Intern</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium mb-1" style={{ color: "oklch(0.45 0.012 65)" }}>Employee Role</label>
+                  <select value={form.employeeRole} onChange={e => setForm(f => ({ ...f, employeeRole: e.target.value as any }))}
+                    className={inputCls} style={inputStyle}>
+                    <option value="regular">Regular Employee</option>
+                    <option value="contractor">Contractor</option>
                   </select>
                 </div>
                 <div>
