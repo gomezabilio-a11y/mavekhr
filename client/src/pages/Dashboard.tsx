@@ -251,8 +251,7 @@ export default function Dashboard() {
           ].map((link) => {
             const Icon = link.icon;
             return (
-              <Link key={link.path} href={link.path}>
-                <a className="flex flex-col items-center gap-2 p-4 rounded-lg hover:bg-gray-50 transition-all duration-150 border border-transparent hover:border-gray-200 text-center">
+              <Link key={link.path} href={link.path} className="flex flex-col items-center gap-2 p-4 rounded-lg hover:bg-gray-50 transition-all duration-150 border border-transparent hover:border-gray-200 text-center">
                   <div
                     className="w-10 h-10 rounded-xl flex items-center justify-center"
                     style={{ background: link.color }}
@@ -262,7 +261,6 @@ export default function Dashboard() {
                   <span className="text-xs font-medium" style={{ color: "oklch(0.35 0.012 65)" }}>
                     {link.label}
                   </span>
-                </a>
               </Link>
             );
           })}

@@ -121,7 +121,7 @@ export default function Layout({ children }: LayoutProps) {
           }
 
           return (
-            <Link key={item.id} href={item.path}>
+            <Link key={item.id} href={item.path} asChild>
               <a
                 className={cn("sidebar-nav-item w-full", isActive && "active")}
                 onClick={() => setMobileOpen(false)}
