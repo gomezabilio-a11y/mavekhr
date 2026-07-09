@@ -22,6 +22,7 @@ import AdminSalary from "./pages/admin/AdminSalary";
 import AdminPerformance from "./pages/admin/AdminPerformance";
 import AdminAnnouncements from "./pages/admin/AdminAnnouncements";
 import AdminEvalForms from "./pages/admin/AdminEvalForms";
+import AdminEvalCycles from "./pages/admin/AdminEvalCycles";
 
 function AdminRouter() {
   return (
@@ -34,6 +35,7 @@ function AdminRouter() {
         <Route path="/admin/performance" component={AdminPerformance} />
         <Route path="/admin/announcements" component={AdminAnnouncements} />
         <Route path="/admin/eval-forms" component={AdminEvalForms} />
+        <Route path="/admin/eval-cycles" component={AdminEvalCycles} />
         <Route component={NotFound} />
       </Switch>
     </AdminLayout>

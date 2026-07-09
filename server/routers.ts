@@ -10,7 +10,9 @@ import {
   createEmployee, updateEmployee, deleteEmployee, getTeamMembers,
   getSalaryRecords, createSalaryRecord, updateSalaryRecord, deleteSalaryRecord,
   getPerformanceResults, getPerformanceCategoryScores, createPerformanceResult,
-  getEvaluationCycles, getEvaluationTasksForEmployee,
+  getEvaluationCycles, getEvaluationCycleById, createEvaluationCycle, updateEvaluationCycle, deleteEvaluationCycle,
+  getEvaluationTasksForEmployee, getEvaluationTasksByCycle,
+  createEvaluationTask, bulkCreateEvaluationTasks, deleteEvaluationTask, deleteEvaluationTasksByCycleAndEvaluatee,
   getAnnouncements, getAllAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement,
   getEmployeeDocuments, createEmployeeDocument, deleteEmployeeDocument,
   getAllEvaluationForms, getEvaluationFormById, getEvaluationFormByType, updateEvaluationForm, upsertEvaluationForm,
@@ -179,10 +181,71 @@ export const appRouter = router({
   }),
 
   evaluation: router({
+    // ── Cycles ──────────────────────────────────────────────────────────────
     cycles: publicProcedure.query(() => getEvaluationCycles()),
+    cycleById: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(({ input }) => getEvaluationCycleById(input.id)),
+    createCycle: adminProcedure
+      .input(z.object({
+        period: z.string().min(1),
+        status: z.enum(["open", "closed", "upcoming"]).default("upcoming"),
+        openDate: z.string().optional(),
+        closeDate: z.string().optional(),
+      }))
+      .mutation(({ input }) => createEvaluationCycle(input as any)),
+    updateCycle: adminProcedure
+      .input(z.object({
+        id: z.number(),
+        period: z.string().optional(),
+        status: z.enum(["open", "closed", "upcoming"]).optional(),
+        openDate: z.string().nullable().optional(),
+        closeDate: z.string().nullable().optional(),
+      }))
+      .mutation(({ input }) => { const { id, ...data } = input; return updateEvaluationCycle(id, data as any); }),
+    deleteCycle: adminProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(({ input }) => deleteEvaluationCycle(input.id)),
+
+    // ── Tasks ───────────────────────────────────────────────────────────────
     myTasks: protectedProcedure
       .input(z.object({ employeeId: z.number() }))
       .query(({ input }) => getEvaluationTasksForEmployee(input.employeeId)),
+    tasksByCycle: adminProcedure
+      .input(z.object({ cycleId: z.number() }))
+      .query(({ input }) => getEvaluationTasksByCycle(input.cycleId)),
+    createTask: adminProcedure
+      .input(z.object({
+        cycleId: z.number(),
+        evaluatorId: z.number(),
+        evaluateeId: z.number(),
+        type: z.enum(["self", "peer", "manager", "contractor"]),
+        status: z.enum(["pending", "in-progress", "completed"]).default("pending"),
+      }))
+      .mutation(({ input }) => createEvaluationTask(input as any)),
+    bulkCreateTasks: adminProcedure
+      .input(z.object({
+        cycleId: z.number(),
+        tasks: z.array(z.object({
+          evaluatorId: z.number(),
+          evaluateeId: z.number(),
+          type: z.enum(["self", "peer", "manager", "contractor"]),
+        })),
+      }))
+      .mutation(({ input }) => {
+        const tasks = input.tasks.map(t => ({
+          ...t,
+          cycleId: input.cycleId,
+          status: "pending" as const,
+        }));
+        return bulkCreateEvaluationTasks(tasks as any);
+      }),
+    deleteTask: adminProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(({ input }) => deleteEvaluationTask(input.id)),
+    removeEvaluateeFromCycle: adminProcedure
+      .input(z.object({ cycleId: z.number(), evaluateeId: z.number() }))
+      .mutation(({ input }) => deleteEvaluationTasksByCycleAndEvaluatee(input.cycleId, input.evaluateeId)),
   }),
 
   announcement: router({

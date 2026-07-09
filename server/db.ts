@@ -240,11 +240,73 @@ export async function getEvaluationCycles() {
   return db.select().from(evaluationCycles).orderBy(desc(evaluationCycles.createdAt));
 }
 
+export async function getEvaluationCycleById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(evaluationCycles).where(eq(evaluationCycles.id, id)).limit(1);
+  return result[0];
+}
+
+export async function createEvaluationCycle(data: typeof evaluationCycles.$inferInsert) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.insert(evaluationCycles).values(data);
+  return (result as any)[0]?.insertId ?? (result as any).insertId;
+}
+
+export async function updateEvaluationCycle(id: number, data: Partial<typeof evaluationCycles.$inferInsert>) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(evaluationCycles).set(data).where(eq(evaluationCycles.id, id));
+}
+
+export async function deleteEvaluationCycle(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  // Delete all tasks in this cycle first
+  await db.delete(evaluationTasks).where(eq(evaluationTasks.cycleId, id));
+  await db.delete(evaluationCycles).where(eq(evaluationCycles.id, id));
+}
+
 export async function getEvaluationTasksForEmployee(employeeId: number) {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(evaluationTasks)
     .where(eq(evaluationTasks.evaluatorId, employeeId));
+}
+
+export async function getEvaluationTasksByCycle(cycleId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(evaluationTasks)
+    .where(eq(evaluationTasks.cycleId, cycleId))
+    .orderBy(evaluationTasks.evaluateeId, evaluationTasks.type);
+}
+
+export async function createEvaluationTask(data: typeof evaluationTasks.$inferInsert) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.insert(evaluationTasks).values(data);
+}
+
+export async function bulkCreateEvaluationTasks(tasks: Array<typeof evaluationTasks.$inferInsert>) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  if (tasks.length === 0) return;
+  await db.insert(evaluationTasks).values(tasks);
+}
+
+export async function deleteEvaluationTask(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.delete(evaluationTasks).where(eq(evaluationTasks.id, id));
+}
+
+export async function deleteEvaluationTasksByCycleAndEvaluatee(cycleId: number, evaluateeId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.delete(evaluationTasks)
+    .where(sql`${evaluationTasks.cycleId} = ${cycleId} AND ${evaluationTasks.evaluateeId} = ${evaluateeId}`);
 }
 
 // ─── Announcements ────────────────────────────────────────────────────────────

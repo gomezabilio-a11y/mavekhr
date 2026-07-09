@@ -9,7 +9,7 @@ import { startLogin } from "@/const";
 import {
   Users, Building2, DollarSign, BarChart2, Megaphone,
   FileText, LogOut, ChevronLeft, LayoutDashboard, Menu, X,
-  Shield, ClipboardList,
+  Shield, ClipboardList, RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { trpc } from "@/lib/trpc";
@@ -23,6 +23,7 @@ const navItems = [
   { path: "/admin/performance", label: "Performance", icon: BarChart2 },
   { path: "/admin/announcements", label: "Announcements", icon: Megaphone },
   { path: "/admin/eval-forms", label: "Evaluation Forms", icon: ClipboardList },
+  { path: "/admin/eval-cycles", label: "Eval Cycles", icon: RefreshCw },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
