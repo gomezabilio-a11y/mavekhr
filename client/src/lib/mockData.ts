@@ -1,5 +1,160 @@
 // Mock data for HR Employee Portal - Mavek
 
+// Team/Entity-based org hierarchy (not person-based)
+export interface TeamNode {
+  id: string;
+  name: string;          // Team or legal entity name
+  type: "entity" | "division" | "department" | "team";
+  headCount?: number;
+  isMyTeam?: boolean;    // Highlight the current user's team
+  isMyPath?: boolean;    // On the path from root to my team
+  children: TeamNode[];
+}
+
+export const teamHierarchy: TeamNode = {
+  id: "entity-mavek",
+  name: "Mavek Group",
+  type: "entity",
+  headCount: 42,
+  children: [
+    {
+      id: "entity-mavekbcs",
+      name: "Mavek BCS",
+      type: "entity",
+      headCount: 30,
+      isMyPath: true,
+      children: [
+        {
+          id: "div-consulting",
+          name: "Consulting",
+          type: "division",
+          headCount: 18,
+          isMyPath: true,
+          children: [
+            {
+              id: "team-consulting-sg",
+              name: "Consulting SG",
+              type: "team",
+              headCount: 10,
+              isMyTeam: true,
+              children: [],
+            },
+            {
+              id: "team-consulting-hk",
+              name: "Consulting HK",
+              type: "team",
+              headCount: 8,
+              children: [],
+            },
+          ],
+        },
+        {
+          id: "div-strategy",
+          name: "Strategy",
+          type: "division",
+          headCount: 8,
+          children: [
+            {
+              id: "team-strategy-sg",
+              name: "Strategy SG",
+              type: "team",
+              headCount: 8,
+              children: [],
+            },
+          ],
+        },
+        {
+          id: "div-finance",
+          name: "Finance & Admin",
+          type: "division",
+          headCount: 4,
+          children: [],
+        },
+      ],
+    },
+    {
+      id: "entity-mavekadvisory",
+      name: "Mavek Advisory",
+      type: "entity",
+      headCount: 12,
+      children: [
+        {
+          id: "div-advisory-sg",
+          name: "Advisory SG",
+          type: "division",
+          headCount: 7,
+          children: [],
+        },
+        {
+          id: "div-advisory-jp",
+          name: "Advisory Japan",
+          type: "division",
+          headCount: 5,
+          children: [],
+        },
+      ],
+    },
+  ],
+};
+
+// My team members (same team as current user)
+export interface TeamMember {
+  id: string;
+  name: string;
+  position: string;
+  email: string;
+  photo: string;
+  isManager?: boolean;
+  isCurrentUser?: boolean;
+}
+
+export const myTeamMembers: TeamMember[] = [
+  {
+    id: "EMP-0001",
+    name: "David Chen",
+    position: "CEO",
+    email: "david.chen@mavekbcs.com",
+    photo: "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=200&h=200&fit=crop&crop=face",
+    isManager: true,
+  },
+  {
+    id: "EMP-0042",
+    name: "James Park",
+    position: "Managing Director",
+    email: "james.park@mavekbcs.com",
+    photo: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=face",
+    isCurrentUser: true,
+  },
+  {
+    id: "EMP-0010",
+    name: "Sarah Kim",
+    position: "Consulting Manager",
+    email: "sarah.kim@mavekbcs.com",
+    photo: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=200&h=200&fit=crop&crop=face",
+  },
+  {
+    id: "EMP-0021",
+    name: "Michael Lee",
+    position: "Senior Consultant",
+    email: "michael.lee@mavekbcs.com",
+    photo: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&h=200&fit=crop&crop=face",
+  },
+  {
+    id: "EMP-0022",
+    name: "Emily Wong",
+    position: "Consultant",
+    email: "emily.wong@mavekbcs.com",
+    photo: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=200&h=200&fit=crop&crop=face",
+  },
+  {
+    id: "EMP-0023",
+    name: "Ryan Tan",
+    position: "Consultant",
+    email: "ryan.tan@mavekbcs.com",
+    photo: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop&crop=face",
+  },
+];
+
 export const currentUser = {
   id: "EMP-0042",
   name: "James Park",

@@ -13,7 +13,32 @@ import FinancialHistory from "./pages/FinancialHistory";
 import PerformanceResults from "./pages/PerformanceResults";
 import PeriodicEvaluation from "./pages/PeriodicEvaluation";
 
-function Router() {
+// Admin pages
+import AdminLayout from "./pages/admin/AdminLayout";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminEmployees from "./pages/admin/AdminEmployees";
+import AdminOrgUnits from "./pages/admin/AdminOrgUnits";
+import AdminSalary from "./pages/admin/AdminSalary";
+import AdminPerformance from "./pages/admin/AdminPerformance";
+import AdminAnnouncements from "./pages/admin/AdminAnnouncements";
+
+function AdminRouter() {
+  return (
+    <AdminLayout>
+      <Switch>
+        <Route path="/admin" component={AdminDashboard} />
+        <Route path="/admin/employees" component={AdminEmployees} />
+        <Route path="/admin/org-units" component={AdminOrgUnits} />
+        <Route path="/admin/salary" component={AdminSalary} />
+        <Route path="/admin/performance" component={AdminPerformance} />
+        <Route path="/admin/announcements" component={AdminAnnouncements} />
+        <Route component={NotFound} />
+      </Switch>
+    </AdminLayout>
+  );
+}
+
+function EmployeeRouter() {
   return (
     <Layout>
       <Switch>
@@ -28,6 +53,16 @@ function Router() {
         <Route component={NotFound} />
       </Switch>
     </Layout>
+  );
+}
+
+function Router() {
+  return (
+    <Switch>
+      <Route path="/admin/:rest*" component={AdminRouter} />
+      <Route path="/admin" component={AdminRouter} />
+      <Route component={EmployeeRouter} />
+    </Switch>
   );
 }
 

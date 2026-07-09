@@ -30,6 +30,7 @@ import { currentUser } from "@/lib/mockData";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { Shield } from "lucide-react";
 
 interface NavItem {
   id: number;
@@ -141,6 +142,16 @@ export default function Layout({ children }: LayoutProps) {
           );
         })}
       </nav>
+
+      {/* Admin Portal link */}
+      <div className="px-3 pb-1">
+        <Link href="/admin" asChild>
+          <a className="flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs transition-colors hover:bg-white/10" style={{ color: "oklch(0.55 0.015 250)" }}>
+            <Shield size={13} />
+            <span>Admin Portal</span>
+          </a>
+        </Link>
+      </div>
 
       {/* User Profile at bottom */}
       <div className="p-3 border-t" style={{ borderColor: "oklch(0.28 0.02 250)" }}>
