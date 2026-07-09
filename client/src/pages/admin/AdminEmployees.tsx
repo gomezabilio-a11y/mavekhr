@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
-import { Plus, Search, Edit2, Trash2, X, Users, ChevronDown } from "lucide-react";
+import { Plus, Search, Edit2, Trash2, X, Users, Upload, Camera } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type EmployeeForm = {
@@ -91,6 +91,7 @@ export default function AdminEmployees() {
       photoUrl: emp.photoUrl ?? "",
       emergencyContact: emp.emergencyContact ?? "",
     });
+    setPhotoPreview("");
     setShowForm(true);
   }
 
@@ -108,6 +109,41 @@ export default function AdminEmployees() {
     }
   }
 
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [photoPreview, setPhotoPreview] = useState<string>("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { toast.error("Please select an image file"); return; }
+    if (file.size > 5 * 1024 * 1024) { toast.error("Image must be under 5MB"); return; }
+    setPhotoUploading(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async (ev) => {
+        const dataUrl = ev.target?.result as string;
+        const base64 = dataUrl.split(",")[1];
+        const resp = await fetch("/api/upload/photo", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ base64, mimeType: file.type, fileName: file.name }),
+          credentials: "include",
+        });
+        if (!resp.ok) throw new Error(await resp.text());
+        const { url } = await resp.json() as { url: string };
+        setForm(f => ({ ...f, photoUrl: url }));
+        setPhotoPreview(dataUrl);
+        toast.success("Photo uploaded");
+        setPhotoUploading(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (err: any) {
+      toast.error(err.message ?? "Upload failed");
+      setPhotoUploading(false);
+    }
+  }
+
   const inputCls = "w-full px-3 py-2 rounded-lg border text-sm outline-none focus:ring-2 transition-all";
   const inputStyle = { borderColor: "oklch(0.88 0.006 80)", background: "white", color: "oklch(0.22 0.012 65)" };
 
@@ -122,7 +158,7 @@ export default function AdminEmployees() {
           <p className="text-sm" style={{ color: "oklch(0.55 0.012 65)" }}>{employees.length} total employees</p>
         </div>
         <button
-          onClick={() => { setEditId(null); setForm(emptyForm); setShowForm(true); }}
+          onClick={() => { setEditId(null); setForm(emptyForm); setPhotoPreview(""); setShowForm(true); }}
           className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white"
           style={{ background: "oklch(0.42 0.18 255)" }}
         >
@@ -325,15 +361,40 @@ export default function AdminEmployees() {
                   <select value={form.managerId} onChange={e => setForm(f => ({ ...f, managerId: e.target.value }))}
                     className={inputCls} style={inputStyle}>
                     <option value="">— None —</option>
-                    {employees.filter(e => e.id !== editId).map(e => (
-                      <option key={e.id} value={e.id}>{e.firstName} {e.lastName}</option>
-                    ))}
+                    {employees
+                      .filter(e => e.id !== (editId ?? -1) && e.status === "active")
+                      .map(e => (
+                        <option key={e.id} value={e.id}>
+                          {e.firstName} {e.lastName}{e.isManager ? " ★" : ""}
+                        </option>
+                      ))}
                   </select>
+                  <p className="text-xs mt-1" style={{ color: "oklch(0.72 0.006 80)" }}>★ = marked as manager</p>
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-xs font-medium mb-1" style={{ color: "oklch(0.45 0.012 65)" }}>Photo URL</label>
-                  <input value={form.photoUrl} onChange={e => setForm(f => ({ ...f, photoUrl: e.target.value }))}
-                    placeholder="https://..." className={inputCls} style={inputStyle} />
+                  <label className="block text-xs font-medium mb-1" style={{ color: "oklch(0.45 0.012 65)" }}>Profile Photo</label>
+                  <div className="flex items-center gap-3">
+                    <div className="w-16 h-16 rounded-full flex-shrink-0 overflow-hidden border flex items-center justify-center"
+                      style={{ borderColor: "oklch(0.88 0.006 80)", background: "oklch(0.95 0.006 80)" }}>
+                      {(photoPreview || form.photoUrl) ? (
+                        <img src={photoPreview || form.photoUrl} alt="preview" className="w-full h-full object-cover" />
+                      ) : (
+                        <Camera size={20} style={{ color: "oklch(0.72 0.006 80)" }} />
+                      )}
+                    </div>
+                    <div className="flex-1 space-y-2">
+                      <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoSelect} />
+                      <button type="button" disabled={photoUploading}
+                        onClick={() => fileInputRef.current?.click()}
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium disabled:opacity-50"
+                        style={{ borderColor: "oklch(0.88 0.006 80)", color: "oklch(0.42 0.18 255)" }}>
+                        <Upload size={12} />
+                        {photoUploading ? "Uploading..." : "Upload Photo"}
+                      </button>
+                      <input value={form.photoUrl} onChange={e => { setForm(f => ({ ...f, photoUrl: e.target.value })); setPhotoPreview(""); }}
+                        placeholder="Or paste image URL..." className={inputCls} style={{ ...inputStyle, fontSize: "11px" }} />
+                    </div>
+                  </div>
                 </div>
                 <div className="col-span-2">
                   <label className="block text-xs font-medium mb-1" style={{ color: "oklch(0.45 0.012 65)" }}>Emergency Contact</label>

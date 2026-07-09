@@ -8,6 +8,7 @@ import { registerStorageProxy } from "./storageProxy";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
+import { storagePut } from "../storage";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -36,6 +37,26 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
   registerStorageProxy(app);
   registerOAuthRoutes(app);
+
+  // ── Photo upload endpoint ──────────────────────────────────────────────────
+  // Accepts base64-encoded image from the frontend, uploads to S3, returns URL
+  app.post("/api/upload/photo", express.json({ limit: "10mb" }), async (req, res) => {
+    try {
+      const { base64, mimeType, fileName } = req.body as { base64: string; mimeType: string; fileName: string };
+      if (!base64 || !mimeType) {
+        res.status(400).json({ error: "base64 and mimeType are required" });
+        return;
+      }
+      const buffer = Buffer.from(base64, "base64");
+      const ext = mimeType.split("/")[1] ?? "jpg";
+      const key = `employee-photos/${Date.now()}-${(fileName ?? "photo").replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+      const { url } = await storagePut(key, buffer, mimeType);
+      res.json({ url });
+    } catch (err: any) {
+      console.error("[Upload] Photo upload failed:", err);
+      res.status(500).json({ error: err.message ?? "Upload failed" });
+    }
+  });
   // tRPC API
   app.use(
     "/api/trpc",
