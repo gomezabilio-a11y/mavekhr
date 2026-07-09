@@ -120,7 +120,19 @@ export const appRouter = router({
         photoUrl: z.string().optional(),
         emergencyContact: z.string().optional(),
       }))
-      .mutation(({ input }) => { const { id, ...data } = input; return updateEmployee(id, data as any); }),
+      .mutation(({ input }) => {
+        const { id, ...data } = input;
+        // Normalize date strings to YYYY-MM-DD for MySQL date columns
+        const toMysqlDate = (v: string | null | undefined) => {
+          if (!v) return v;
+          const d = new Date(v);
+          if (isNaN(d.getTime())) return v;
+          return d.toISOString().slice(0, 10);
+        };
+        if (data.startDate) data.startDate = toMysqlDate(data.startDate) ?? data.startDate;
+        if (data.contractEndDate) data.contractEndDate = toMysqlDate(data.contractEndDate);
+        return updateEmployee(id, data as any);
+      }),
     delete: adminProcedure
       .input(z.object({ id: z.number() }))
       .mutation(({ input }) => deleteEmployee(input.id)),

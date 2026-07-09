@@ -26,6 +26,14 @@ type EmployeeForm = {
   emergencyContact: string;
 };
 
+// Normalize any date value to YYYY-MM-DD string for <input type="date">
+function toDateInput(val: unknown): string {
+  if (!val) return "";
+  const d = new Date(val as string | number | Date);
+  if (isNaN(d.getTime())) return String(val);
+  return d.toISOString().slice(0, 10);
+}
+
 const emptyForm: EmployeeForm = {
   employeeCode: "", firstName: "", lastName: "", email: "",
   phone: "", nationality: "", position: "",
@@ -81,8 +89,8 @@ export default function AdminEmployees() {
       position: emp.position,
       employmentType: emp.employmentType,
       workLocation: emp.workLocation ?? "",
-      startDate: emp.startDate ? String(emp.startDate) : "",
-      contractEndDate: emp.contractEndDate ? String(emp.contractEndDate) : "",
+      startDate: emp.startDate ? toDateInput(emp.startDate) : "",
+      contractEndDate: emp.contractEndDate ? toDateInput(emp.contractEndDate) : "",
       status: emp.status,
       orgUnitId: emp.orgUnitId?.toString() ?? "",
       managerId: emp.managerId?.toString() ?? "",
@@ -99,6 +107,8 @@ export default function AdminEmployees() {
     e.preventDefault();
     const payload = {
       ...form,
+      startDate: toDateInput(form.startDate),
+      contractEndDate: form.contractEndDate ? toDateInput(form.contractEndDate) : "",
       orgUnitId: form.orgUnitId ? parseInt(form.orgUnitId) : undefined,
       managerId: form.managerId ? parseInt(form.managerId) : undefined,
     };
