@@ -761,3 +761,21 @@ export async function updateEmployeePersonalInfo(
   if (!db) throw new Error("DB not available");
   await db.update(employees).set({ ...data, updatedAt: new Date() }).where(eq(employees.id, employeeId));
 }
+
+// ─── Org Path (root → my team) ────────────────────────────────────────────────
+// Returns the chain of org units from the root down to the given orgUnitId.
+// e.g. [Entity, Division, Department, Team]
+export async function getOrgPath(orgUnitId: number): Promise<typeof orgUnits.$inferSelect[]> {
+  const db = await getDb();
+  if (!db) return [];
+  const all = await db.select().from(orgUnits);
+  const map = new Map(all.map((u) => [u.id, u]));
+
+  const path: typeof orgUnits.$inferSelect[] = [];
+  let current = map.get(orgUnitId);
+  while (current) {
+    path.unshift(current);
+    current = current.parentId ? map.get(current.parentId) : undefined;
+  }
+  return path;
+}

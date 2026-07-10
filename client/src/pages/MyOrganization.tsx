@@ -1,19 +1,17 @@
 /**
- * MyOrganization.tsx — Team/Entity Org Chart + My Team
+ * MyOrganization.tsx — Direct Hierarchy Path + My Team
  * Design: Warm Slate
- * Features:
- *  - Team/legal entity hierarchy (not person-based)
- *  - Current user's team highlighted (amber)
- *  - Path from root to my team highlighted (blue)
- *  - My Team section: all members with manager badge
+ *
+ * Shows only the employee's direct reporting chain:
+ *   e.g. MAVEK BCS HK → MAVEK BCS Seoul → LOB → A Team  (MY TEAM)
+ * Plus the My Team section listing all members in the same org unit.
  */
 import { useState } from "react";
-import { teamHierarchy, myTeamMembers, currentUser, TeamNode } from "@/lib/mockData";
+import { trpc } from "@/lib/trpc";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Building2, Users, ChevronDown, ChevronRight, Layers, Network } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Building2, Users, Layers, Network, ChevronDown, Loader2 } from "lucide-react";
 
-// Icon and color per node type
+// ─── Type config ───────────────────────────────────────────────────────────────
 const typeConfig: Record<string, { label: string; bg: string; border: string; text: string; icon: React.ElementType }> = {
   entity:     { label: "Entity",     bg: "oklch(0.94 0.04 255)", border: "oklch(0.72 0.18 255)", text: "oklch(0.32 0.18 255)", icon: Building2 },
   division:   { label: "Division",   bg: "oklch(0.94 0.04 145)", border: "oklch(0.62 0.18 145)", text: "oklch(0.28 0.18 145)", icon: Layers },
@@ -21,361 +19,245 @@ const typeConfig: Record<string, { label: string; bg: string; border: string; te
   team:       { label: "Team",       bg: "oklch(0.94 0.04 27)",  border: "oklch(0.62 0.2 27)",   text: "oklch(0.38 0.2 27)",   icon: Users },
 };
 
-function TeamNodeCard({
-  node,
-  depth = 0,
-}: {
-  node: TeamNode;
-  depth?: number;
-}) {
-  const [expanded, setExpanded] = useState(true);
-  const hasChildren = node.children.length > 0;
-  const cfg = typeConfig[node.type];
-  const Icon = cfg.icon;
-
-  const isMyTeam = !!node.isMyTeam;
-  const isMyPath = !!node.isMyPath || isMyTeam;
-
-  return (
-    <div className="flex flex-col items-center">
-      {/* Node card */}
-      <div className="relative flex flex-col items-center">
-        <div
-          className={cn(
-            "relative flex flex-col items-center gap-1.5 px-4 py-3 rounded-xl border-2 transition-all duration-150 min-w-[110px] max-w-[140px]",
-            isMyTeam
-              ? "shadow-lg"
-              : isMyPath
-              ? "shadow-sm"
-              : "shadow-sm"
-          )}
-          style={{
-            background: isMyTeam ? "oklch(0.97 0.06 80)" : "white",
-            borderColor: isMyTeam
-              ? "oklch(0.72 0.15 65)"
-              : isMyPath
-              ? "oklch(0.62 0.18 255)"
-              : "oklch(0.88 0.006 80)",
-            boxShadow: isMyTeam
-              ? "0 0 0 3px oklch(0.92 0.08 80), 0 4px 12px rgba(0,0,0,0.1)"
-              : isMyPath
-              ? "0 2px 8px rgba(0,0,0,0.08)"
-              : "0 1px 3px rgba(0,0,0,0.06)",
-          }}
-        >
-          {/* My team badge */}
-          {isMyTeam && (
-            <div
-              className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full text-white whitespace-nowrap"
-              style={{ background: "oklch(0.72 0.15 65)", fontSize: "9px", fontWeight: 700, letterSpacing: "0.05em" }}
-            >
-              MY TEAM
-            </div>
-          )}
-
-          {/* Type icon */}
-          <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-            style={{ background: isMyTeam ? "oklch(0.92 0.08 80)" : cfg.bg }}
-          >
-            <Icon
-              size={15}
-              style={{ color: isMyTeam ? "oklch(0.52 0.15 65)" : cfg.text }}
-            />
-          </div>
-
-          {/* Name */}
-          <p
-            className="text-xs font-semibold text-center leading-tight"
-            style={{
-              color: isMyTeam ? "oklch(0.38 0.14 65)" : "oklch(0.22 0.012 65)",
-              fontFamily: "'DM Sans', sans-serif",
-            }}
-          >
-            {node.name}
-          </p>
-
-          {/* Headcount */}
-          {node.headCount !== undefined && (
-            <div
-              className="flex items-center gap-1 text-center"
-              style={{ color: "oklch(0.55 0.012 65)", fontSize: "10px" }}
-            >
-              <Users size={9} />
-              <span>{node.headCount}</span>
-            </div>
-          )}
-
-          {/* Type badge */}
-          <span
-            className="text-center px-1.5 py-0.5 rounded-full"
-            style={{
-              background: isMyTeam ? "oklch(0.88 0.08 80)" : cfg.bg,
-              color: isMyTeam ? "oklch(0.52 0.15 65)" : cfg.text,
-              fontSize: "9px",
-              fontWeight: 600,
-            }}
-          >
-            {cfg.label}
-          </span>
-        </div>
-
-        {/* Expand/collapse button */}
-        {hasChildren && (
-          <button
-            onClick={() => setExpanded(!expanded)}
-            className="mt-1 w-5 h-5 rounded-full border flex items-center justify-center transition-colors hover:bg-gray-100"
-            style={{ borderColor: "oklch(0.88 0.006 80)", background: "white" }}
-          >
-            {expanded ? (
-              <ChevronDown size={10} style={{ color: "oklch(0.55 0.012 65)" }} />
-            ) : (
-              <ChevronRight size={10} style={{ color: "oklch(0.55 0.012 65)" }} />
-            )}
-          </button>
-        )}
-      </div>
-
-      {/* Children */}
-      {hasChildren && expanded && (
-        <div className="flex flex-col items-center">
-          {/* Vertical line down from parent */}
-          <div
-            className="w-px h-4"
-            style={{
-              background: isMyPath ? "oklch(0.62 0.18 255)" : "oklch(0.82 0.006 80)",
-            }}
-          />
-          {/* Children row */}
-          <div className="flex items-start">
-            {node.children.map((child, i) => (
-              <div key={child.id} className="flex flex-col items-center">
-                <div className="flex items-center w-full">
-                  {/* Left connector */}
-                  {i > 0 && (
-                    <div
-                      className="h-px"
-                      style={{
-                        background: child.isMyPath || child.isMyTeam ? "oklch(0.62 0.18 255)" : "oklch(0.82 0.006 80)",
-                        minWidth: "20px",
-                        flex: 1,
-                      }}
-                    />
-                  )}
-                  <div className="flex flex-col items-center">
-                    <div
-                      className="w-px h-4"
-                      style={{
-                        background: child.isMyPath || child.isMyTeam ? "oklch(0.62 0.18 255)" : "oklch(0.82 0.006 80)",
-                      }}
-                    />
-                    <TeamNodeCard node={child} depth={depth + 1} />
-                  </div>
-                  {/* Right connector */}
-                  {i < node.children.length - 1 && (
-                    <div
-                      className="h-px"
-                      style={{
-                        background:
-                          node.children[i + 1].isMyPath || node.children[i + 1].isMyTeam
-                            ? "oklch(0.62 0.18 255)"
-                            : "oklch(0.82 0.006 80)",
-                        minWidth: "20px",
-                        flex: 1,
-                      }}
-                    />
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 export default function MyOrganization() {
   const [memberFilter, setMemberFilter] = useState<"all" | "manager" | "member">("all");
 
-  const managers = myTeamMembers.filter((m) => m.isManager);
+  const { data: me } = trpc.auth.me.useQuery();
+  const { data: emp, isLoading: empLoading } = trpc.employee.me.useQuery(undefined, { enabled: !!me });
+
+  // Direct hierarchy path: root → my team
+  const { data: orgPath = [], isLoading: pathLoading } = trpc.orgUnit.myPath.useQuery(undefined, {
+    enabled: !!emp,
+  });
+
+  // My team members (same org unit)
+  const { data: teamMembers = [], isLoading: teamLoading } = trpc.employee.teamMembers.useQuery(
+    { orgUnitId: emp?.orgUnitId ?? 0 },
+    { enabled: !!emp?.orgUnitId }
+  );
+
+  const isLoading = empLoading || pathLoading;
+
   const filtered =
     memberFilter === "all"
-      ? myTeamMembers
+      ? teamMembers
       : memberFilter === "manager"
-      ? myTeamMembers.filter((m) => m.isManager)
-      : myTeamMembers.filter((m) => !m.isManager);
+      ? teamMembers.filter((m: any) => m.isManager)
+      : teamMembers.filter((m: any) => !m.isManager);
 
   return (
     <div className="p-6 space-y-6">
       {/* Page Header */}
       <div>
-        <h2
-          className="text-xl font-bold mb-1"
-          style={{ color: "oklch(0.22 0.012 65)", fontFamily: "'DM Sans', sans-serif" }}
-        >
+        <h2 className="text-xl font-bold mb-1" style={{ color: "oklch(0.22 0.012 65)", fontFamily: "'DM Sans', sans-serif" }}>
           My Organization
         </h2>
         <p className="text-sm" style={{ color: "oklch(0.55 0.012 65)" }}>
-          Your team's position within the company structure
+          Your position within the company structure
         </p>
       </div>
 
-      {/* Legend */}
-      <div className="flex items-center gap-5 flex-wrap">
-        <div className="flex items-center gap-2">
-          <div
-            className="w-4 h-4 rounded border-2"
-            style={{ borderColor: "oklch(0.72 0.15 65)", background: "oklch(0.97 0.06 80)" }}
-          />
-          <span className="text-xs" style={{ color: "oklch(0.55 0.012 65)" }}>My Team</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div
-            className="w-4 h-4 rounded border-2"
-            style={{ borderColor: "oklch(0.62 0.18 255)", background: "white" }}
-          />
-          <span className="text-xs" style={{ color: "oklch(0.55 0.012 65)" }}>Reporting line</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div
-            className="w-4 h-4 rounded border-2"
-            style={{ borderColor: "oklch(0.88 0.006 80)", background: "white" }}
-          />
-          <span className="text-xs" style={{ color: "oklch(0.55 0.012 65)" }}>Other teams</span>
-        </div>
-        {/* Type legend */}
-        <div className="flex items-center gap-3 ml-auto flex-wrap">
-          {Object.entries(typeConfig).map(([type, cfg]) => {
-            const Icon = cfg.icon;
-            return (
-              <div key={type} className="flex items-center gap-1">
-                <div
-                  className="w-4 h-4 rounded flex items-center justify-center"
-                  style={{ background: cfg.bg }}
-                >
-                  <Icon size={9} style={{ color: cfg.text }} />
+      {/* Hierarchy Path */}
+      <div className="hr-card p-6">
+        <h4 className="text-sm font-semibold mb-5" style={{ color: "oklch(0.22 0.012 65)", fontFamily: "'DM Sans', sans-serif" }}>
+          Reporting Structure
+        </h4>
+
+        {isLoading ? (
+          <div className="flex justify-center py-10">
+            <Loader2 size={24} className="animate-spin" style={{ color: "oklch(0.42 0.18 255)" }} />
+          </div>
+        ) : !emp ? (
+          <div className="text-center py-10">
+            <Building2 size={32} className="mx-auto mb-3" style={{ color: "oklch(0.82 0.006 80)" }} />
+            <p className="text-sm" style={{ color: "oklch(0.65 0.012 65)" }}>No employee profile linked to your account.</p>
+          </div>
+        ) : orgPath.length === 0 ? (
+          <div className="text-center py-10">
+            <Building2 size={32} className="mx-auto mb-3" style={{ color: "oklch(0.82 0.006 80)" }} />
+            <p className="text-sm" style={{ color: "oklch(0.65 0.012 65)" }}>No org unit assigned yet.</p>
+            <p className="text-xs mt-1" style={{ color: "oklch(0.72 0.006 80)" }}>Contact HR to assign your team.</p>
+          </div>
+        ) : (
+          <div className="flex flex-col items-start gap-0">
+            {orgPath.map((unit, index) => {
+              const isLast = index === orgPath.length - 1;
+              const cfg = typeConfig[unit.type] ?? typeConfig.team;
+              const Icon = cfg.icon;
+
+              return (
+                <div key={unit.id} className="flex flex-col items-start">
+                  {/* Node */}
+                  <div
+                    className="flex items-center gap-3 px-4 py-3 rounded-xl border-2 transition-all"
+                    style={{
+                      background: isLast ? "oklch(0.97 0.06 80)" : "white",
+                      borderColor: isLast ? "oklch(0.72 0.15 65)" : cfg.border,
+                      boxShadow: isLast
+                        ? "0 0 0 3px oklch(0.92 0.08 80), 0 4px 12px rgba(0,0,0,0.08)"
+                        : "0 1px 4px rgba(0,0,0,0.06)",
+                      minWidth: "220px",
+                    }}
+                  >
+                    {/* Icon */}
+                    <div
+                      className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
+                      style={{ background: isLast ? "oklch(0.92 0.08 80)" : cfg.bg }}
+                    >
+                      <Icon size={16} style={{ color: isLast ? "oklch(0.52 0.15 65)" : cfg.text }} />
+                    </div>
+
+                    {/* Name + type */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold" style={{ color: isLast ? "oklch(0.38 0.14 65)" : "oklch(0.22 0.012 65)", fontFamily: "'DM Sans', sans-serif" }}>
+                        {unit.name}
+                      </p>
+                      <p className="text-xs mt-0.5" style={{ color: "oklch(0.55 0.012 65)" }}>
+                        {cfg.label}
+                        {unit.headCount ? ` · ${unit.headCount} people` : ""}
+                      </p>
+                    </div>
+
+                    {/* MY TEAM badge */}
+                    {isLast && (
+                      <span
+                        className="px-2 py-0.5 rounded-full text-white flex-shrink-0"
+                        style={{ background: "oklch(0.72 0.15 65)", fontSize: "10px", fontWeight: 700, letterSpacing: "0.04em" }}
+                      >
+                        MY TEAM
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Connector arrow to next node */}
+                  {!isLast && (
+                    <div className="flex flex-col items-start ml-[22px] gap-0">
+                      <div className="w-px h-3" style={{ background: "oklch(0.78 0.006 80)" }} />
+                      <ChevronDown size={14} style={{ color: "oklch(0.72 0.006 80)", marginLeft: "-7px" }} />
+                      <div className="w-px h-3" style={{ background: "oklch(0.78 0.006 80)" }} />
+                    </div>
+                  )}
                 </div>
-                <span className="text-xs" style={{ color: "oklch(0.55 0.012 65)" }}>
-                  {cfg.label}
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* My Team Members */}
+      {emp?.orgUnitId && (
+        <div className="hr-card p-5">
+          <div className="flex items-center gap-3 mb-4 flex-wrap">
+            <div className="flex items-center gap-2">
+              <Users size={16} style={{ color: "oklch(0.42 0.18 255)" }} />
+              <h3 className="text-sm font-semibold" style={{ color: "oklch(0.22 0.012 65)", fontFamily: "'DM Sans', sans-serif" }}>
+                My Team
+              </h3>
+              {!teamLoading && (
+                <span
+                  className="text-xs px-2 py-0.5 rounded-full font-medium"
+                  style={{ background: "oklch(0.92 0.08 255)", color: "oklch(0.42 0.18 255)" }}
+                >
+                  {teamMembers.length} members
                 </span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+              )}
+            </div>
 
-      {/* Org Chart */}
-      <div className="hr-card p-6 overflow-x-auto">
-        <div className="flex justify-center min-w-max pb-4 pt-4">
-          <TeamNodeCard node={teamHierarchy} />
-        </div>
-      </div>
-
-      {/* My Team Section */}
-      <div className="hr-card p-5">
-        <div className="flex items-center gap-3 mb-4 flex-wrap">
-          <div className="flex items-center gap-2">
-            <Users size={16} style={{ color: "oklch(0.42 0.18 255)" }} />
-            <h3
-              className="text-sm font-semibold"
-              style={{ color: "oklch(0.22 0.012 65)", fontFamily: "'DM Sans', sans-serif" }}
-            >
-              My Team
-            </h3>
-            <span
-              className="text-xs px-2 py-0.5 rounded-full font-medium"
-              style={{ background: "oklch(0.92 0.08 255)", color: "oklch(0.42 0.18 255)" }}
-            >
-              {myTeamMembers.length} members
-            </span>
-          </div>
-
-          {/* Filter tabs */}
-          <div
-            className="ml-auto flex rounded-lg overflow-hidden border text-xs"
-            style={{ borderColor: "oklch(0.88 0.006 80)" }}
-          >
-            {(["all", "manager", "member"] as const).map((f) => (
-              <button
-                key={f}
-                onClick={() => setMemberFilter(f)}
-                className="px-3 py-1.5 transition-colors capitalize"
-                style={{
-                  background: memberFilter === f ? "oklch(0.22 0.022 250)" : "white",
-                  color: memberFilter === f ? "white" : "oklch(0.45 0.012 65)",
-                  fontWeight: memberFilter === f ? 600 : 400,
-                }}
-              >
-                {f === "all" ? "All" : f === "manager" ? "Manager" : "Members"}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {filtered.map((member) => (
+            {/* Filter tabs */}
             <div
-              key={member.id}
-              className="flex items-center gap-3 p-3 rounded-lg transition-colors"
-              style={{
-                border: `1px solid ${member.isCurrentUser ? "oklch(0.72 0.15 65)" : "oklch(0.88 0.006 80)"}`,
-                background: member.isCurrentUser ? "oklch(0.97 0.06 80)" : "white",
-              }}
+              className="ml-auto flex rounded-lg overflow-hidden border text-xs"
+              style={{ borderColor: "oklch(0.88 0.006 80)" }}
             >
-              <Avatar className="w-10 h-10 flex-shrink-0">
-                <AvatarImage src={member.photo} alt={member.name} />
-                <AvatarFallback
-                  className="text-xs font-semibold"
+              {(["all", "manager", "member"] as const).map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setMemberFilter(f)}
+                  className="px-3 py-1.5 transition-colors capitalize"
                   style={{
-                    background: member.isManager
-                      ? "oklch(0.42 0.18 255)"
-                      : member.isCurrentUser
-                      ? "oklch(0.72 0.15 65)"
-                      : "oklch(0.62 0.1 255)",
-                    color: "white",
+                    background: memberFilter === f ? "oklch(0.22 0.022 250)" : "white",
+                    color: memberFilter === f ? "white" : "oklch(0.45 0.012 65)",
+                    fontWeight: memberFilter === f ? 600 : 400,
                   }}
                 >
-                  {member.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
-                </AvatarFallback>
-              </Avatar>
-
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <p
-                    className="text-sm font-medium truncate"
-                    style={{ color: "oklch(0.22 0.012 65)" }}
-                  >
-                    {member.name}
-                  </p>
-                  {member.isCurrentUser && (
-                    <span
-                      className="text-xs px-1.5 py-0.5 rounded-full flex-shrink-0"
-                      style={{ background: "oklch(0.92 0.08 80)", color: "oklch(0.52 0.15 65)", fontSize: "10px", fontWeight: 600 }}
-                    >
-                      You
-                    </span>
-                  )}
-                  {member.isManager && (
-                    <span
-                      className="text-xs px-1.5 py-0.5 rounded-full flex-shrink-0"
-                      style={{ background: "oklch(0.92 0.08 255)", color: "oklch(0.42 0.18 255)", fontSize: "10px", fontWeight: 600 }}
-                    >
-                      Manager
-                    </span>
-                  )}
-                </div>
-                <p
-                  className="text-xs truncate mt-0.5"
-                  style={{ color: "oklch(0.55 0.012 65)" }}
-                >
-                  {member.position}
-                </p>
-              </div>
+                  {f === "all" ? "All" : f === "manager" ? "Manager" : "Members"}
+                </button>
+              ))}
             </div>
-          ))}
+          </div>
+
+          {teamLoading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 size={20} className="animate-spin" style={{ color: "oklch(0.42 0.18 255)" }} />
+            </div>
+          ) : teamMembers.length === 0 ? (
+            <div className="text-center py-8">
+              <Users size={28} className="mx-auto mb-2" style={{ color: "oklch(0.82 0.006 80)" }} />
+              <p className="text-sm" style={{ color: "oklch(0.65 0.012 65)" }}>No team members found.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {(filtered as any[]).map((member) => {
+                const isMe = member.id === emp?.id;
+                const initials = `${member.firstName?.[0] ?? ""}${member.lastName?.[0] ?? ""}`;
+                return (
+                  <div
+                    key={member.id}
+                    className="flex items-center gap-3 p-3 rounded-lg transition-colors"
+                    style={{
+                      border: `1px solid ${isMe ? "oklch(0.72 0.15 65)" : "oklch(0.88 0.006 80)"}`,
+                      background: isMe ? "oklch(0.97 0.06 80)" : "white",
+                    }}
+                  >
+                    <Avatar className="w-10 h-10 flex-shrink-0">
+                      {member.photoUrl && <AvatarFallback style={{ background: "oklch(0.42 0.18 255)", color: "white" }}>{initials}</AvatarFallback>}
+                      <AvatarFallback
+                        className="text-xs font-semibold"
+                        style={{
+                          background: member.isManager
+                            ? "oklch(0.42 0.18 255)"
+                            : isMe
+                            ? "oklch(0.72 0.15 65)"
+                            : "oklch(0.62 0.1 255)",
+                          color: "white",
+                        }}
+                      >
+                        {initials}
+                      </AvatarFallback>
+                    </Avatar>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className="text-sm font-medium truncate" style={{ color: "oklch(0.22 0.012 65)" }}>
+                          {member.firstName} {member.lastName}
+                        </p>
+                        {isMe && (
+                          <span
+                            className="text-xs px-1.5 py-0.5 rounded-full flex-shrink-0"
+                            style={{ background: "oklch(0.92 0.08 80)", color: "oklch(0.52 0.15 65)", fontSize: "10px", fontWeight: 600 }}
+                          >
+                            You
+                          </span>
+                        )}
+                        {member.isManager && (
+                          <span
+                            className="text-xs px-1.5 py-0.5 rounded-full flex-shrink-0"
+                            style={{ background: "oklch(0.92 0.08 255)", color: "oklch(0.42 0.18 255)", fontSize: "10px", fontWeight: 600 }}
+                          >
+                            Manager
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs truncate mt-0.5" style={{ color: "oklch(0.55 0.012 65)" }}>
+                        {member.position}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
-      </div>
+      )}
     </div>
   );
 }

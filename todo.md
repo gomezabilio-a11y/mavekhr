@@ -3,7 +3,7 @@
 ## Employee Portal (Menus 1–7)
 - [x] Dashboard (welcome banner, stats cards, announcements, quick links)
 - [x] My Information (personal info, employment info, documents tabs)
-- [x] My Organization — team/entity hierarchy chart + My Team section with manager badge
+- [x] My Organization — direct hierarchy path (root → my team) + My Team members from DB
 - [x] My Account (password change, login history, connected devices)
 - [x] Financial History (salary table, YTD totals)
 - [x] Performance Results (score gauge, radar chart, category breakdown)

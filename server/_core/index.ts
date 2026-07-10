@@ -60,16 +60,24 @@ async function startServer() {
         return;
       }
 
-      // Find user by email (check employees table first for the email, then users)
+      // Find user by email:
+      // 1. Check employees table first (regular employees)
+      // 2. Fall back to users table directly (admin-only accounts)
+      let user: typeof users.$inferSelect | undefined;
+
       const empRows = await db.select().from(employees).where(eq(employees.email, email)).limit(1);
       const emp = empRows[0];
-      if (!emp || !emp.userId) {
-        res.status(401).json({ error: "Invalid email or password" });
-        return;
+      if (emp?.userId) {
+        const userRows = await db.select().from(users).where(eq(users.id, emp.userId)).limit(1);
+        user = userRows[0];
       }
 
-      const userRows = await db.select().from(users).where(eq(users.id, emp.userId)).limit(1);
-      const user = userRows[0];
+      // Fallback: look up directly in users table by email
+      if (!user) {
+        const userRows = await db.select().from(users).where(eq(users.email, email)).limit(1);
+        user = userRows[0];
+      }
+
       if (!user || !user.passwordHash) {
         res.status(401).json({ error: "Invalid email or password" });
         return;

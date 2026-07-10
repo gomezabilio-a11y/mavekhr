@@ -29,6 +29,7 @@ import {
   createLeaveRequest, approveLeaveRequest, cancelLeaveRequest,
   getBankInfoByEmployeeId, upsertBankInfo,
   updateEmployeePersonalInfo,
+  getOrgPath,
 } from "./db";
 
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -83,6 +84,11 @@ export const appRouter = router({
 
   orgUnit: router({
     list: publicProcedure.query(() => getAllOrgUnits()),
+    myPath: protectedProcedure.query(async ({ ctx }) => {
+      const employee = await getEmployeeByUserId(ctx.user.id);
+      if (!employee?.orgUnitId) return [];
+      return getOrgPath(employee.orgUnitId);
+    }),
     create: adminProcedure
       .input(z.object({
         name: z.string().min(1),
