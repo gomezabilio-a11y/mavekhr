@@ -24,7 +24,7 @@ type SalaryForm = {
 };
 
 const emptyForm: SalaryForm = {
-  employeeId: "", currency: "SGD", amount: "", paymentDate: "",
+  employeeId: "", currency: "USD", amount: "", paymentDate: "",
   periodLabel: "", status: "paid", payslipUrl: "",
   nextPaymentDate: "", nextPaymentIsNA: true,
   components: [],
@@ -216,10 +216,11 @@ export default function AdminSalary() {
     e.preventDefault();
     const nextPaymentDate = form.nextPaymentIsNA ? null : (form.nextPaymentDate || null);
     const validComponents = form.components.filter(c => c.label.trim() && c.amount);
+    const empId = editId ? parseInt(form.employeeId) : (selectedEmployee ?? 0);
     if (editId) {
       updateMutation.mutate({ id: editId, ...form, nextPaymentDate, components: validComponents });
     } else {
-      createMutation.mutate({ ...form, employeeId: parseInt(form.employeeId), nextPaymentDate, components: validComponents });
+      createMutation.mutate({ ...form, employeeId: empId, nextPaymentDate, components: validComponents });
     }
   }
 
@@ -227,7 +228,11 @@ export default function AdminSalary() {
     if (!rec.nextPaymentDate) return "N/A";
     const s = String(rec.nextPaymentDate);
     if (!s || s.trim() === "") return "N/A";
-    return s;
+    try {
+      return new Date(s).toLocaleDateString("en-SG", { day: "numeric", month: "short", year: "numeric" });
+    } catch {
+      return s.split("T")[0];
+    }
   }
 
   const selectedEmp = employees.find(e => e.id === selectedEmployee);
@@ -308,7 +313,7 @@ export default function AdminSalary() {
                             {rec.periodLabel}
                           </button>
                         </td>
-                        <td className="px-4 py-3" style={{ color: "oklch(0.45 0.012 65)" }}>{rec.paymentDate ? String(rec.paymentDate) : "—"}</td>
+                        <td className="px-4 py-3" style={{ color: "oklch(0.45 0.012 65)" }}>{rec.paymentDate ? (() => { const d = String(rec.paymentDate).split("T")[0]; const [y,m,day] = d.split("-"); return new Date(parseInt(y), parseInt(m)-1, parseInt(day)).toLocaleDateString("en-SG", { day: "numeric", month: "short", year: "numeric" }); })() : "—"}</td>
                         <td className="px-4 py-3">
                           <span className="flex items-center gap-1.5">
                             <CalendarClock size={13} style={{ color: formatNextPayment(rec) === "N/A" ? "oklch(0.65 0.012 65)" : "oklch(0.42 0.18 255)" }} />
@@ -397,14 +402,10 @@ export default function AdminSalary() {
               </button>
             </div>
             <form onSubmit={handleSubmit} className="p-5 space-y-4">
-              {!editId && (
-                <div>
-                  <label className="block text-xs font-medium mb-1" style={{ color: "oklch(0.45 0.012 65)" }}>Employee *</label>
-                  <select required value={form.employeeId} onChange={e => setForm(f => ({ ...f, employeeId: e.target.value }))}
-                    className={inputCls} style={inputStyle}>
-                    <option value="">— Select employee —</option>
-                    {employees.map(e => <option key={e.id} value={e.id}>{e.firstName} {e.lastName}</option>)}
-                  </select>
+              {!editId && selectedEmp && (
+                <div className="px-3 py-2 rounded-lg text-sm" style={{ background: "oklch(0.95 0.006 80)", color: "oklch(0.22 0.012 65)" }}>
+                  <span className="text-xs" style={{ color: "oklch(0.55 0.012 65)" }}>Adding record for: </span>
+                  <span className="font-semibold">{selectedEmp.firstName} {selectedEmp.lastName}</span>
                 </div>
               )}
               <div className="grid grid-cols-2 gap-3">
