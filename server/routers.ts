@@ -110,8 +110,11 @@ export const appRouter = router({
       .query(({ input }) => searchEmployees(input.query)),
     byId: protectedProcedure
       .input(z.object({ id: z.number() }))
-      .query(({ input }) => getEmployeeById(input.id)),
-    me: protectedProcedure.query(({ ctx }) => getEmployeeByUserId(ctx.user.id)),
+      .query(async ({ input }) => (await getEmployeeById(input.id)) ?? null),
+    me: protectedProcedure.query(async ({ ctx }) => {
+      const emp = await getEmployeeByUserId(ctx.user.id);
+      return emp ?? null;
+    }),
     teamMembers: protectedProcedure
       .input(z.object({ orgUnitId: z.number() }))
       .query(({ input }) => getTeamMembers(input.orgUnitId)),
@@ -272,7 +275,7 @@ export const appRouter = router({
     cycles: publicProcedure.query(() => getEvaluationCycles()),
     cycleById: protectedProcedure
       .input(z.object({ id: z.number() }))
-      .query(({ input }) => getEvaluationCycleById(input.id)),
+      .query(async ({ input }) => (await getEvaluationCycleById(input.id)) ?? null),
     createCycle: adminProcedure
       .input(z.object({
         period: z.string().min(1),
