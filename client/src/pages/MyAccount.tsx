@@ -2,16 +2,16 @@
  * MyAccount.tsx — Account Settings
  * Design: Warm Slate
  */
-import { loginHistory } from "@/lib/mockData";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Lock, History, Monitor, Mail, Shield, CheckCircle2, AlertCircle, Laptop, Smartphone } from "lucide-react";
+import { Lock, History, Monitor, Mail, CheckCircle2, Laptop, Smartphone } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { useAuth } from "@/_core/hooks/useAuth";
 
 export default function MyAccount() {
+  const { user } = useAuth();
   return (
     <div className="p-6 space-y-6">
       <div>
@@ -92,40 +92,9 @@ export default function MyAccount() {
               Login History
             </h4>
             <div className="space-y-2">
-              {loginHistory.map((entry, i) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-3 p-3 rounded-lg"
-                  style={{ border: "1px solid oklch(0.88 0.006 80)" }}
-                >
-                  <div
-                    className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
-                    style={{ background: entry.status === "Current" ? "oklch(0.92 0.08 255)" : "oklch(0.94 0.004 80)" }}
-                  >
-                    {entry.device.includes("iPhone") ? (
-                      <Smartphone size={16} style={{ color: entry.status === "Current" ? "oklch(0.42 0.18 255)" : "oklch(0.55 0.012 65)" }} />
-                    ) : (
-                      <Laptop size={16} style={{ color: entry.status === "Current" ? "oklch(0.42 0.18 255)" : "oklch(0.55 0.012 65)" }} />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium" style={{ color: "oklch(0.22 0.012 65)" }}>
-                        {entry.device}
-                      </p>
-                      {entry.status === "Current" && (
-                        <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: "oklch(0.92 0.08 255)", color: "oklch(0.42 0.18 255)" }}>
-                          Current
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs" style={{ color: "oklch(0.55 0.012 65)" }}>
-                      {entry.location} · {entry.time}
-                    </p>
-                  </div>
-                  <CheckCircle2 size={16} style={{ color: "oklch(0.52 0.18 145)" }} />
-                </div>
-              ))}
+              <p className="text-sm text-center py-8" style={{ color: "oklch(0.65 0.01 65)" }}>
+                Login history is not yet tracked.
+              </p>
             </div>
           </div>
         </TabsContent>
@@ -175,7 +144,7 @@ export default function MyAccount() {
               <CheckCircle2 size={18} style={{ color: "oklch(0.42 0.18 145)" }} />
               <div>
                 <p className="text-sm font-medium" style={{ color: "oklch(0.35 0.16 145)" }}>Email Verified</p>
-                <p className="text-xs" style={{ color: "oklch(0.45 0.14 145)" }}>james.park@mavekbcs.com</p>
+                <p className="text-xs" style={{ color: "oklch(0.45 0.14 145)" }}>{user?.email ?? "—"}</p>
               </div>
             </div>
             <div className="p-3 rounded-lg text-xs" style={{ background: "oklch(0.94 0.004 80)", color: "oklch(0.55 0.012 65)" }}>
