@@ -105,12 +105,19 @@ export default function AdminEmployees() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const rawManagerId = form.managerId ? parseInt(form.managerId, 10) : undefined;
+    const managerId = rawManagerId && !isNaN(rawManagerId) ? rawManagerId : undefined;
+    const rawOrgUnitId = form.orgUnitId ? parseInt(form.orgUnitId, 10) : undefined;
+    const orgUnitId = rawOrgUnitId && !isNaN(rawOrgUnitId) ? rawOrgUnitId : undefined;
+    const contractEndDate = form.contractEndDate && form.contractEndDate.trim() !== ""
+      ? toDateInput(form.contractEndDate)
+      : undefined;
     const payload = {
       ...form,
       startDate: toDateInput(form.startDate),
-      contractEndDate: form.contractEndDate ? toDateInput(form.contractEndDate) : "",
-      orgUnitId: form.orgUnitId ? parseInt(form.orgUnitId) : undefined,
-      managerId: form.managerId ? parseInt(form.managerId) : undefined,
+      contractEndDate,
+      orgUnitId,
+      managerId,
     };
     if (editId) {
       updateMutation.mutate({ id: editId, ...payload });
@@ -362,7 +369,7 @@ export default function AdminEmployees() {
                     className={inputCls} style={inputStyle}>
                     <option value="">— None —</option>
                     {orgUnits.map(u => (
-                      <option key={u.id} value={u.id}>{u.name} ({u.type})</option>
+                      <option key={u.id} value={String(u.id)}>{u.name} ({u.type})</option>
                     ))}
                   </select>
                 </div>
@@ -374,7 +381,7 @@ export default function AdminEmployees() {
                     {employees
                       .filter(e => e.id !== (editId ?? -1) && e.status === "active")
                       .map(e => (
-                        <option key={e.id} value={e.id}>
+                        <option key={e.id} value={String(e.id)}>
                           {e.firstName} {e.lastName}{e.isManager ? " ★" : ""}
                         </option>
                       ))}

@@ -88,7 +88,7 @@ export const appRouter = router({
         employmentType: z.enum(["full-time", "part-time", "contract", "intern"]).default("full-time"),
         workLocation: z.string().optional(),
         startDate: z.string(),
-        contractEndDate: z.string().optional(),
+        contractEndDate: z.string().nullable().optional(),
         status: z.enum(["active", "inactive", "terminated"]).default("active"),
         orgUnitId: z.number().optional(),
         managerId: z.number().optional(),
@@ -97,7 +97,21 @@ export const appRouter = router({
         photoUrl: z.string().optional(),
         emergencyContact: z.string().optional(),
       }))
-      .mutation(({ input }) => createEmployee(input as any)),
+      .mutation(({ input }) => {
+        const toMysqlDate = (v: string | null | undefined) => {
+          if (!v || v.trim() === "") return undefined;
+          const d = new Date(v);
+          if (isNaN(d.getTime())) return undefined;
+          return d.toISOString().slice(0, 10);
+        };
+        const data = {
+          ...input,
+          startDate: toMysqlDate(input.startDate) ?? input.startDate,
+          contractEndDate: toMysqlDate(input.contractEndDate),
+          managerId: input.managerId ?? undefined,
+        };
+        return createEmployee(data as any);
+      }),
     update: adminProcedure
       .input(z.object({
         id: z.number(),
