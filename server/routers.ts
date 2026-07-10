@@ -27,6 +27,8 @@ import {
   getLeaveBalances, upsertLeaveBalance,
   getLeaveRequests, getPendingLeaveRequestsForManager, getAllLeaveRequestsAdmin,
   createLeaveRequest, approveLeaveRequest, cancelLeaveRequest,
+  getBankInfoByEmployeeId, upsertBankInfo,
+  updateEmployeePersonalInfo,
 } from "./db";
 
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -214,6 +216,19 @@ export const appRouter = router({
     delete: adminProcedure
       .input(z.object({ id: z.number() }))
       .mutation(({ input }) => deleteEmployee(input.id)),
+    updatePersonal: protectedProcedure
+      .input(z.object({
+        phone: z.string().optional(),
+        nationality: z.string().optional(),
+        workLocation: z.string().optional(),
+        emergencyContact: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const employee = await getEmployeeByUserId(ctx.user.id);
+        if (!employee) throw new TRPCError({ code: "NOT_FOUND", message: "Employee profile not found" });
+        await updateEmployeePersonalInfo(employee.id, input);
+        return { success: true };
+      }),
   }),
 
   salary: router({
@@ -602,6 +617,38 @@ export const appRouter = router({
     kpiAnswers: protectedProcedure
       .input(z.object({ responseId: z.number() }))
       .query(({ input }) => getKpiResponsesByResponseId(input.responseId)),
+  }),
+
+  // ─── Bank Information ──────────────────────────────────────────────────────
+  bankInfo: router({
+    get: protectedProcedure.query(async ({ ctx }) => {
+      const employee = await getEmployeeByUserId(ctx.user.id);
+      if (!employee) return null;
+      return getBankInfoByEmployeeId(employee.id);
+    }),
+    upsert: protectedProcedure
+      .input(z.object({
+        recipientName: z.string().optional(),
+        recipientAddress: z.string().optional(),
+        recipientEmail: z.string().optional(),
+        recipientPhone: z.string().optional(),
+        bankName: z.string().optional(),
+        swiftBic: z.string().optional(),
+        branchName: z.string().optional(),
+        bankAddress: z.string().optional(),
+        accountNumber: z.string().optional(),
+        ifsc: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const employee = await getEmployeeByUserId(ctx.user.id);
+        if (!employee) throw new TRPCError({ code: "NOT_FOUND", message: "Employee profile not found" });
+        await upsertBankInfo({
+          employeeId: employee.id,
+          ...input,
+          updatedAt: new Date(),
+        });
+        return { success: true };
+      }),
   }),
 });
 

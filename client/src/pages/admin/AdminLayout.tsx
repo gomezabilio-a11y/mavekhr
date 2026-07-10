@@ -5,7 +5,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { startLogin } from "@/const";
 import {
   Users, Building2, DollarSign, BarChart2, Megaphone,
   FileText, LogOut, ChevronLeft, LayoutDashboard, Menu, X,
@@ -44,17 +43,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   if (!isAuthenticated) {
+    window.location.href = "/login";
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4" style={{ background: "oklch(0.97 0.006 80)" }}>
-        <Shield size={40} style={{ color: "oklch(0.42 0.18 255)" }} />
-        <p className="text-sm" style={{ color: "oklch(0.45 0.012 65)" }}>Admin access required. Please sign in.</p>
-        <button
-          onClick={() => startLogin()}
-          className="px-4 py-2 rounded-lg text-sm font-medium text-white"
-          style={{ background: "oklch(0.42 0.18 255)" }}
-        >
-          Sign In
-        </button>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "oklch(0.97 0.006 80)" }}>
+        <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: "oklch(0.62 0.18 255)" }} />
       </div>
     );
   }

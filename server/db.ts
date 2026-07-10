@@ -19,6 +19,7 @@ import {
   leaveTypes, InsertLeaveType,
   leaveBalances, InsertLeaveBalance,
   leaveRequests, InsertLeaveRequest,
+  bankInfo, InsertBankInfo, BankInfo,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -716,4 +717,47 @@ export async function cancelLeaveRequest(id: number, employeeId: number) {
   await db.update(leaveRequests)
     .set({ status: "cancelled", updatedAt: new Date() })
     .where(and(eq(leaveRequests.id, id), eq(leaveRequests.employeeId, employeeId), eq(leaveRequests.status, "pending")));
+}
+
+// ─── Bank / Recipient Information ─────────────────────────────────────────────
+export async function getBankInfoByEmployeeId(employeeId: number): Promise<BankInfo | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.select().from(bankInfo).where(eq(bankInfo.employeeId, employeeId)).limit(1);
+  return result[0] ?? null;
+}
+
+export async function upsertBankInfo(data: InsertBankInfo): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.insert(bankInfo).values(data).onDuplicateKeyUpdate({
+    set: {
+      recipientName: data.recipientName,
+      recipientAddress: data.recipientAddress,
+      recipientEmail: data.recipientEmail,
+      recipientPhone: data.recipientPhone,
+      bankName: data.bankName,
+      swiftBic: data.swiftBic,
+      branchName: data.branchName,
+      bankAddress: data.bankAddress,
+      accountNumber: data.accountNumber,
+      ifsc: data.ifsc,
+      updatedAt: new Date(),
+    },
+  });
+}
+
+// ─── Employee Self-Update (Personal Info) ─────────────────────────────────────
+export async function updateEmployeePersonalInfo(
+  employeeId: number,
+  data: {
+    phone?: string | null;
+    nationality?: string | null;
+    workLocation?: string | null;
+    emergencyContact?: string | null;
+  }
+): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(employees).set({ ...data, updatedAt: new Date() }).where(eq(employees.id, employeeId));
 }

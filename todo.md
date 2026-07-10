@@ -50,13 +50,24 @@
 - [x] Contractor: no self-evaluation, only peer evaluation available
 
 ## Auth + Documents + Leave Management
-- [ ] DB schema: passwordHash in users, employeeDocuments table, leaveTypes/leaveBalances/leaveRequests tables
-- [ ] DB migration
-- [ ] Install bcrypt, build email+password login/logout API
-- [ ] Login page (email + password, replace OAuth)
-- [ ] Admin: set password when creating/editing employee
-- [ ] Admin: document upload (CV, contract) per employee
-- [ ] Employee portal: My Info Documents tab connected to real DB
-- [ ] Leave Management page (employee: apply, view status, balance)
-- [ ] Leave Management: manager approval page
-- [ ] Leave balance management (admin sets annual/sick leave days per employee)
+- [x] DB schema: passwordHash in users, employeeDocuments table, leaveTypes/leaveBalances/leaveRequests tables
+- [x] DB migration
+- [x] Install bcrypt, build email+password login/logout API
+- [x] Login page (email + password, replace OAuth)
+- [x] Admin: set password when creating/editing employee
+- [x] Admin: document upload (CV, contract) per employee
+- [x] Employee portal: My Info Documents tab connected to real DB
+- [x] Leave Management page (employee: apply, view status, balance)
+- [x] Leave Management: manager approval page
+- [x] Leave balance management (admin sets annual/sick leave days per employee)
+
+## My Information Improvements
+- [x] DB schema: bank_info table (19th table)
+- [x] DB migration (pnpm db:push)
+- [x] Backend: getBankInfoByEmployeeId, upsertBankInfo, updateEmployeePersonalInfo helpers
+- [x] tRPC: bankInfo.get, bankInfo.upsert procedures
+- [x] tRPC: employee.updatePersonal procedure (phone/nationality/workLocation/emergencyContact)
+- [x] Frontend: Personal tab — editable fields (phone, nationality, workLocation, emergencyContact); full name read-only
+- [x] Frontend: Bank Information tab — Recipient Info + Bank Info sections with save button
+- [x] Frontend: Documents tab — connected to trpc.document.list (admin uploads → employee downloads)
+- [x] Verified: admin document upload → employee_documents table → employee Documents tab flow

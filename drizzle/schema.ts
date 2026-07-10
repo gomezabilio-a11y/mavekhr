@@ -302,3 +302,26 @@ export const leaveRequests = mysqlTable("leave_requests", {
 
 export type LeaveRequest = typeof leaveRequests.$inferSelect;
 export type InsertLeaveRequest = typeof leaveRequests.$inferInsert;
+
+// ─── Bank / Recipient Information ─────────────────────────────────────────────
+export const bankInfo = mysqlTable("bank_info", {
+  id: int("id").autoincrement().primaryKey(),
+  employeeId: int("employeeId").notNull().unique(),
+  // Recipient Information
+  recipientName: varchar("recipientName", { length: 256 }),
+  recipientAddress: text("recipientAddress"),
+  recipientEmail: varchar("recipientEmail", { length: 320 }),
+  recipientPhone: varchar("recipientPhone", { length: 32 }),
+  // Bank Information
+  bankName: varchar("bankName", { length: 256 }),
+  swiftBic: varchar("swiftBic", { length: 32 }),
+  branchName: varchar("branchName", { length: 256 }),
+  bankAddress: text("bankAddress"),
+  accountNumber: varchar("accountNumber", { length: 64 }),
+  ifsc: varchar("ifsc", { length: 32 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type BankInfo = typeof bankInfo.$inferSelect;
+export type InsertBankInfo = typeof bankInfo.$inferInsert;
