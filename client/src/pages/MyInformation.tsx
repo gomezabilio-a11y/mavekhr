@@ -232,20 +232,20 @@ export default function MyInformation() {
 
       {/* Tabs */}
       <Tabs defaultValue="personal">
-        <TabsList className="mb-4">
-          <TabsTrigger value="personal" className="flex items-center gap-1.5">
+        <TabsList className="mb-4 gap-2 p-1.5">
+          <TabsTrigger value="personal" className="flex items-center gap-2 px-4 py-2">
             <User size={14} />
             Personal
           </TabsTrigger>
-          <TabsTrigger value="employment" className="flex items-center gap-1.5">
+          <TabsTrigger value="employment" className="flex items-center gap-2 px-4 py-2">
             <Briefcase size={14} />
             Employment
           </TabsTrigger>
-          <TabsTrigger value="bank" className="flex items-center gap-1.5">
+          <TabsTrigger value="bank" className="flex items-center gap-2 px-4 py-2">
             <Landmark size={14} />
             Bank Information
           </TabsTrigger>
-          <TabsTrigger value="documents" className="flex items-center gap-1.5">
+          <TabsTrigger value="documents" className="flex items-center gap-2 px-4 py-2">
             <FileText size={14} />
             Documents
           </TabsTrigger>

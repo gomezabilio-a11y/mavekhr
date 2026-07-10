@@ -1,8 +1,7 @@
 /**
  * Layout.tsx — Warm Slate HR Portal Layout
  * Design: Fixed left sidebar (260px) + scrollable main content
- * Sidebar: deep slate background, amber active indicator
- * Main: warm off-white background
+ * Auth: redirects to /login if not authenticated
  */
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
@@ -20,17 +19,15 @@ import {
   GraduationCap,
   Megaphone,
   HelpCircle,
-  ChevronRight,
   Bell,
   LogOut,
   Menu,
-  X,
+  Shield,
 } from "lucide-react";
-import { currentUser } from "@/lib/mockData";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { Shield } from "lucide-react";
+import { useAuth } from "@/_core/hooks/useAuth";
+import { trpc } from "@/lib/trpc";
 
 interface NavItem {
   id: number;
@@ -61,14 +58,43 @@ interface LayoutProps {
 }
 
 export default function Layout({ children }: LayoutProps) {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
+  const navigate = setLocation;
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { user, loading, isAuthenticated } = useAuth();
+
+  const logoutMutation = trpc.auth.logout.useMutation({
+    onSuccess: () => {
+      navigate("/login");
+    },
+    onError: () => {
+      navigate("/login");
+    },
+  });
+
+  // Redirect to login if not authenticated
+  if (!loading && !isAuthenticated) {
+    navigate("/login");
+    return null;
+  }
 
   const handleComingSoon = (label: string) => {
     toast.info(`${label} — Coming Soon`, {
       description: "This feature is currently under development.",
     });
   };
+
+  const handleLogout = () => {
+    logoutMutation.mutate();
+  };
+
+  const displayName = user?.name ?? "—";
+  const initials = displayName
+    .split(" ")
+    .map((n) => n[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
@@ -143,35 +169,37 @@ export default function Layout({ children }: LayoutProps) {
         })}
       </nav>
 
-      {/* Admin Portal link */}
-      <div className="px-3 pb-1">
-        <Link href="/admin" asChild>
-          <a className="flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs transition-colors hover:bg-white/10" style={{ color: "oklch(0.55 0.015 250)" }}>
-            <Shield size={13} />
-            <span>Admin Portal</span>
-          </a>
-        </Link>
-      </div>
+      {/* Admin Portal link — only for admins */}
+      {user?.role === "admin" && (
+        <div className="px-3 pb-1">
+          <Link href="/admin" asChild>
+            <a className="flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs transition-colors hover:bg-white/10" style={{ color: "oklch(0.55 0.015 250)" }}>
+              <Shield size={13} />
+              <span>Admin Portal</span>
+            </a>
+          </Link>
+        </div>
+      )}
 
       {/* User Profile at bottom */}
       <div className="p-3 border-t" style={{ borderColor: "oklch(0.28 0.02 250)" }}>
         <div className="flex items-center gap-3 px-2 py-2 rounded-md" style={{ background: "oklch(0.22 0.025 250)" }}>
           <Avatar className="w-8 h-8 flex-shrink-0">
-            <AvatarImage src={currentUser.photo} alt={currentUser.name} />
-            <AvatarFallback className="text-xs" style={{ background: "oklch(0.42 0.18 255)", color: "white" }}>
-              {currentUser.firstName[0]}P
+            <AvatarFallback className="text-xs font-semibold" style={{ background: "oklch(0.42 0.18 255)", color: "white" }}>
+              {initials}
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium text-white truncate">{currentUser.name}</div>
+            <div className="text-sm font-medium text-white truncate">{displayName}</div>
             <div className="text-xs truncate" style={{ color: "oklch(0.55 0.015 250)" }}>
-              {currentUser.position}
+              {user?.role === "admin" ? "Administrator" : "Employee"}
             </div>
           </div>
           <button
-            onClick={() => toast.info("Logout — Coming Soon")}
+            onClick={handleLogout}
             className="p-1 rounded hover:bg-white/10 transition-colors"
             style={{ color: "oklch(0.55 0.015 250)" }}
+            title="Logout"
           >
             <LogOut size={14} />
           </button>
@@ -241,9 +269,8 @@ export default function Layout({ children }: LayoutProps) {
               />
             </button>
             <Avatar className="w-8 h-8">
-              <AvatarImage src={currentUser.photo} alt={currentUser.name} />
-              <AvatarFallback className="text-xs" style={{ background: "oklch(0.42 0.18 255)", color: "white" }}>
-                JP
+              <AvatarFallback className="text-xs font-semibold" style={{ background: "oklch(0.42 0.18 255)", color: "white" }}>
+                {initials}
               </AvatarFallback>
             </Avatar>
           </div>
