@@ -181,9 +181,12 @@ export default function FinancialHistory() {
   async function handleDownloadPayslip(record: any) {
     setDownloadingId(record.id);
     try {
+      // Invalidate cache first then fetch fresh
+      await utils.salary.components.invalidate({ salaryRecordId: record.id });
       const components = await utils.salary.components.fetch({ salaryRecordId: record.id });
-      generatePayslipPDF(record, components as any[], employeeName);
+      generatePayslipPDF(record, Array.isArray(components) ? components as any[] : [], employeeName);
     } catch (e) {
+      console.error("Payslip error:", e);
       toast.error("Failed to generate payslip");
     } finally {
       setDownloadingId(null);
