@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
-import { Plus, Edit2, Trash2, X, DollarSign, Search } from "lucide-react";
+import { Plus, Edit2, Trash2, X, DollarSign, CalendarClock } from "lucide-react";
 
 type SalaryForm = {
   employeeId: string;
@@ -12,11 +12,14 @@ type SalaryForm = {
   periodLabel: string;
   status: "paid" | "pending" | "cancelled";
   payslipUrl: string;
+  nextPaymentDate: string;    // "" = N/A, otherwise YYYY-MM-DD
+  nextPaymentIsNA: boolean;
 };
 
 const emptyForm: SalaryForm = {
   employeeId: "", currency: "SGD", amount: "", paymentDate: "",
   periodLabel: "", status: "paid", payslipUrl: "",
+  nextPaymentDate: "", nextPaymentIsNA: true,
 };
 
 export default function AdminSalary() {
@@ -53,6 +56,7 @@ export default function AdminSalary() {
 
   function handleEdit(rec: typeof salaryRecords[0]) {
     setEditId(rec.id);
+    const hasNextDate = rec.nextPaymentDate != null && String(rec.nextPaymentDate).trim() !== "";
     setForm({
       employeeId: rec.employeeId.toString(),
       currency: rec.currency,
@@ -61,17 +65,27 @@ export default function AdminSalary() {
       periodLabel: rec.periodLabel,
       status: rec.status,
       payslipUrl: rec.payslipUrl ?? "",
+      nextPaymentDate: hasNextDate ? String(rec.nextPaymentDate) : "",
+      nextPaymentIsNA: !hasNextDate,
     });
     setShowForm(true);
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const nextPaymentDate = form.nextPaymentIsNA ? null : (form.nextPaymentDate || null);
     if (editId) {
-      updateMutation.mutate({ id: editId, ...form });
+      updateMutation.mutate({ id: editId, ...form, nextPaymentDate });
     } else {
-      createMutation.mutate({ ...form, employeeId: parseInt(form.employeeId) });
+      createMutation.mutate({ ...form, employeeId: parseInt(form.employeeId), nextPaymentDate });
     }
+  }
+
+  function formatNextPayment(rec: typeof salaryRecords[0]) {
+    if (!rec.nextPaymentDate) return "N/A";
+    const s = String(rec.nextPaymentDate);
+    if (!s || s.trim() === "") return "N/A";
+    return s;
   }
 
   const selectedEmp = employees.find(e => e.id === selectedEmployee);
@@ -133,7 +147,7 @@ export default function AdminSalary() {
               <table className="w-full text-sm">
                 <thead>
                   <tr style={{ background: "oklch(0.97 0.006 80)", borderBottom: "1px solid oklch(0.90 0.006 80)" }}>
-                    {["Period", "Payment Date", "Amount", "Status", "Actions"].map(h => (
+                    {["Period", "Payment Date", "Next Payment Date", "Amount", "Status", "Actions"].map(h => (
                       <th key={h} className="text-left px-4 py-3 text-xs font-semibold" style={{ color: "oklch(0.55 0.012 65)" }}>{h}</th>
                     ))}
                   </tr>
@@ -143,6 +157,14 @@ export default function AdminSalary() {
                     <tr key={rec.id} className="border-b last:border-0 hover:bg-gray-50/50" style={{ borderColor: "oklch(0.94 0.006 80)" }}>
                       <td className="px-4 py-3 font-medium" style={{ color: "oklch(0.22 0.012 65)" }}>{rec.periodLabel}</td>
                       <td className="px-4 py-3" style={{ color: "oklch(0.45 0.012 65)" }}>{rec.paymentDate ? String(rec.paymentDate) : "—"}</td>
+                      <td className="px-4 py-3">
+                        <span className="flex items-center gap-1.5">
+                          <CalendarClock size={13} style={{ color: formatNextPayment(rec) === "N/A" ? "oklch(0.65 0.012 65)" : "oklch(0.42 0.18 255)" }} />
+                          <span style={{ color: formatNextPayment(rec) === "N/A" ? "oklch(0.65 0.012 65)" : "oklch(0.22 0.012 65)" }}>
+                            {formatNextPayment(rec)}
+                          </span>
+                        </span>
+                      </td>
                       <td className="px-4 py-3 font-semibold" style={{ color: "oklch(0.22 0.012 65)" }}>{rec.currency} {parseFloat(rec.amount).toLocaleString()}</td>
                       <td className="px-4 py-3">
                         <span className="text-xs px-2 py-0.5 rounded-full" style={{
@@ -174,7 +196,7 @@ export default function AdminSalary() {
       {/* Form Modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.5)" }}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-5 border-b" style={{ borderColor: "oklch(0.90 0.006 80)" }}>
               <h3 className="font-semibold" style={{ color: "oklch(0.22 0.012 65)" }}>
                 {editId ? "Edit Salary Record" : "Add Salary Record"}
@@ -216,6 +238,52 @@ export default function AdminSalary() {
                 <input required type="date" value={form.paymentDate} onChange={e => setForm(f => ({ ...f, paymentDate: e.target.value }))}
                   className={inputCls} style={inputStyle} />
               </div>
+
+              {/* Next Payment Date */}
+              <div>
+                <label className="block text-xs font-medium mb-1" style={{ color: "oklch(0.45 0.012 65)" }}>Next Payment Date</label>
+                <div className="flex items-center gap-2 mb-2">
+                  <button
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, nextPaymentIsNA: true, nextPaymentDate: "" }))}
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium border transition-all"
+                    style={{
+                      background: form.nextPaymentIsNA ? "oklch(0.42 0.18 255)" : "white",
+                      color: form.nextPaymentIsNA ? "white" : "oklch(0.45 0.012 65)",
+                      borderColor: form.nextPaymentIsNA ? "oklch(0.42 0.18 255)" : "oklch(0.88 0.006 80)",
+                    }}
+                  >
+                    N/A
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, nextPaymentIsNA: false }))}
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium border transition-all"
+                    style={{
+                      background: !form.nextPaymentIsNA ? "oklch(0.42 0.18 255)" : "white",
+                      color: !form.nextPaymentIsNA ? "white" : "oklch(0.45 0.012 65)",
+                      borderColor: !form.nextPaymentIsNA ? "oklch(0.42 0.18 255)" : "oklch(0.88 0.006 80)",
+                    }}
+                  >
+                    Set Date
+                  </button>
+                </div>
+                {!form.nextPaymentIsNA && (
+                  <input
+                    type="date"
+                    value={form.nextPaymentDate}
+                    onChange={e => setForm(f => ({ ...f, nextPaymentDate: e.target.value }))}
+                    className={inputCls}
+                    style={inputStyle}
+                  />
+                )}
+                {form.nextPaymentIsNA && (
+                  <p className="text-xs" style={{ color: "oklch(0.65 0.012 65)" }}>
+                    Next payment date is not yet confirmed (will show as N/A)
+                  </p>
+                )}
+              </div>
+
               <div>
                 <label className="block text-xs font-medium mb-1" style={{ color: "oklch(0.45 0.012 65)" }}>Status</label>
                 <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value as any }))}

@@ -1,0 +1,1 @@
+ALTER TABLE `salary_records` ADD `nextPaymentDate` date;

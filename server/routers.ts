@@ -250,6 +250,7 @@ export const appRouter = router({
         periodLabel: z.string(),
         status: z.enum(["paid", "pending", "cancelled"]).default("paid"),
         payslipUrl: z.string().optional(),
+        nextPaymentDate: z.string().nullable().optional(), // null = N/A
       }))
       .mutation(({ input }) => createSalaryRecord(input as any)),
     update: adminProcedure
@@ -261,6 +262,7 @@ export const appRouter = router({
         periodLabel: z.string().optional(),
         status: z.enum(["paid", "pending", "cancelled"]).optional(),
         payslipUrl: z.string().optional(),
+        nextPaymentDate: z.string().nullable().optional(), // null = N/A
       }))
       .mutation(({ input }) => { const { id, ...data } = input; return updateSalaryRecord(id, data as any); }),
     delete: adminProcedure

@@ -49,18 +49,25 @@ export default function Dashboard() {
     .join("")
     .toUpperCase();
 
-  // Next salary: find the nearest upcoming pending salary record
+  // Next salary: prefer nextPaymentDate field, fallback to nearest pending paymentDate
   const { data: salaryRecords = [] } = trpc.salary.list.useQuery(
     { employeeId: emp?.id ?? 0 },
     { enabled: !!emp?.id }
   );
-  const nextSalary = salaryRecords
+  // Find the most recent record that has a nextPaymentDate set
+  const recordWithNextDate = salaryRecords
+    .filter((s: any) => s.nextPaymentDate != null && String(s.nextPaymentDate).trim() !== "")
+    .sort((a: any, b: any) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime())[0];
+  // Fallback: nearest upcoming pending record
+  const nextPendingSalary = salaryRecords
     .filter((s: any) => s.status === "pending")
     .sort((a: any, b: any) => new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime())[0];
 
-  const nextSalaryLabel = nextSalary
-    ? new Date(nextSalary.paymentDate).toLocaleDateString("en-SG", { day: "numeric", month: "long" })
-    : "—";
+  const nextSalaryLabel = recordWithNextDate
+    ? new Date(String(recordWithNextDate.nextPaymentDate)).toLocaleDateString("en-SG", { day: "numeric", month: "long", year: "numeric" })
+    : nextPendingSalary
+      ? new Date(nextPendingSalary.paymentDate).toLocaleDateString("en-SG", { day: "numeric", month: "long" })
+      : "N/A";
 
   // Pending evaluation tasks
   const { data: evalTasks = [] } = trpc.evaluation.myTasks.useQuery(

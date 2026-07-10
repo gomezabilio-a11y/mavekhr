@@ -164,6 +164,10 @@ export default function AdminEmployees() {
       contractEndDate,
       orgUnitId,
       managerId,
+      // Ensure boolean type (not string "false"/"true")
+      isManager: Boolean(form.isManager),
+      // Don't send empty string as photoUrl — send undefined so DB keeps existing value
+      photoUrl: form.photoUrl && form.photoUrl.trim() !== "" ? form.photoUrl : undefined,
     };
     if (editId) {
       updateMutation.mutate({ id: editId, ...payload });
@@ -274,9 +278,11 @@ export default function AdminEmployees() {
                       <td className="px-4 py-3 font-mono text-xs" style={{ color: "oklch(0.55 0.012 65)" }}>{emp.employeeCode}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
-                            style={{ background: "oklch(0.52 0.18 255)" }}>
-                            {emp.firstName[0]}{emp.lastName[0]}
+                          <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0 overflow-hidden"
+                            style={{ background: emp.photoUrl ? undefined : "oklch(0.52 0.18 255)" }}>
+                            {emp.photoUrl
+                              ? <img src={emp.photoUrl} alt={emp.firstName} className="w-full h-full object-cover" />
+                              : <>{emp.firstName[0]}{emp.lastName[0]}</>}
                           </div>
                           <div>
                             <p className="font-medium" style={{ color: "oklch(0.22 0.012 65)" }}>{emp.firstName} {emp.lastName}</p>

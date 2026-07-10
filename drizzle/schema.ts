@@ -82,6 +82,7 @@ export const salaryRecords = mysqlTable("salary_records", {
   periodLabel: varchar("periodLabel", { length: 32 }).notNull(),
   status: mysqlEnum("status", ["paid", "pending", "cancelled"]).default("paid").notNull(),
   payslipUrl: text("payslipUrl"),
+  nextPaymentDate: date("nextPaymentDate"),  // null = N/A
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
