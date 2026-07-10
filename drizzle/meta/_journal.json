@@ -15,6 +15,13 @@
       "when": 1783583115485,
       "tag": "0001_living_blackheart",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1783648571879,
+      "tag": "0002_giant_winter_soldier",
+      "breakpoints": true
     }
   ]
 }

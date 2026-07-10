@@ -23,6 +23,9 @@ import AdminPerformance from "./pages/admin/AdminPerformance";
 import AdminAnnouncements from "./pages/admin/AdminAnnouncements";
 import AdminEvalForms from "./pages/admin/AdminEvalForms";
 import AdminEvalCycles from "./pages/admin/AdminEvalCycles";
+import AdminLeave from "./pages/admin/AdminLeave";
+import LeaveManagement from "./pages/LeaveManagement";
+import Login from "./pages/Login";
 
 function AdminRouter() {
   return (
@@ -36,6 +39,7 @@ function AdminRouter() {
         <Route path="/admin/announcements" component={AdminAnnouncements} />
         <Route path="/admin/eval-forms" component={AdminEvalForms} />
         <Route path="/admin/eval-cycles" component={AdminEvalCycles} />
+        <Route path="/admin/leave" component={AdminLeave} />
         <Route component={NotFound} />
       </Switch>
     </AdminLayout>
@@ -53,6 +57,7 @@ function EmployeeRouter() {
         <Route path="/financial-history" component={FinancialHistory} />
         <Route path="/performance-results" component={PerformanceResults} />
         <Route path="/periodic-evaluation" component={PeriodicEvaluation} />
+        <Route path="/leave-management" component={LeaveManagement} />
         <Route path="/404" component={NotFound} />
         <Route component={NotFound} />
       </Switch>
@@ -63,6 +68,7 @@ function EmployeeRouter() {
 function Router() {
   return (
     <Switch>
+      <Route path="/login" component={Login} />
       <Route path="/admin/:rest*" component={AdminRouter} />
       <Route path="/admin" component={AdminRouter} />
       <Route component={EmployeeRouter} />

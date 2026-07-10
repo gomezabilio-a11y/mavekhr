@@ -1,17 +1,16 @@
 /**
- * MyInformation.tsx — Employee Information
+ * MyInformation.tsx — Employee Information (DB-connected)
  * Design: Warm Slate
  */
-import { currentUser, documents } from "@/lib/mockData";
+import { trpc } from "@/lib/trpc";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Download, FileText, User, Briefcase } from "lucide-react";
-import { toast } from "sonner";
+import { Download, FileText, User, Briefcase, Loader2 } from "lucide-react";
 
-function InfoRow({ label, value }: { label: string; value: string | null }) {
+function InfoRow({ label, value }: { label: string; value: string | null | undefined }) {
   return (
     <div className="flex items-start py-3 border-b last:border-b-0" style={{ borderColor: "oklch(0.92 0.004 80)" }}>
-      <span className="text-xs font-medium w-40 flex-shrink-0 pt-0.5" style={{ color: "oklch(0.55 0.012 65)" }}>
+      <span className="text-xs font-medium w-44 flex-shrink-0 pt-0.5" style={{ color: "oklch(0.55 0.012 65)" }}>
         {label}
       </span>
       <span className="text-sm font-medium" style={{ color: value ? "oklch(0.22 0.012 65)" : "oklch(0.65 0.01 65)" }}>
@@ -22,6 +21,24 @@ function InfoRow({ label, value }: { label: string; value: string | null }) {
 }
 
 export default function MyInformation() {
+  const { data: me } = trpc.auth.me.useQuery();
+  const { data: emp, isLoading: empLoading } = trpc.employee.me.useQuery(undefined, { enabled: !!me });
+  const { data: documents = [], isLoading: docsLoading } = trpc.document.list.useQuery(
+    { employeeId: emp?.id ?? 0 },
+    { enabled: !!emp?.id }
+  );
+
+  const initials = emp ? `${emp.firstName[0]}${emp.lastName[0]}` : "??";
+  const fullName = emp ? `${emp.firstName} ${emp.lastName}` : "—";
+
+  if (empLoading) {
+    return (
+      <div className="p-6 flex items-center justify-center py-24">
+        <Loader2 size={28} className="animate-spin" style={{ color: "oklch(0.42 0.18 255)" }} />
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-6">
       <div>
@@ -36,24 +53,24 @@ export default function MyInformation() {
       {/* Profile Header */}
       <div className="hr-card p-6 flex items-center gap-5">
         <Avatar className="w-20 h-20">
-          <AvatarImage src={currentUser.photo} alt={currentUser.name} />
+          {emp?.photoUrl && <AvatarImage src={emp.photoUrl} alt={fullName} />}
           <AvatarFallback className="text-xl font-semibold" style={{ background: "oklch(0.42 0.18 255)", color: "white" }}>
-            JP
+            {initials}
           </AvatarFallback>
         </Avatar>
         <div>
           <h3 className="text-xl font-bold" style={{ color: "oklch(0.22 0.012 65)", fontFamily: "'DM Sans', sans-serif" }}>
-            {currentUser.name}
+            {fullName}
           </h3>
           <p className="text-sm font-medium mt-0.5" style={{ color: "oklch(0.42 0.18 255)" }}>
-            {currentUser.position}
+            {emp?.position ?? "—"}
           </p>
           <div className="flex items-center gap-3 mt-2">
             <span className="text-xs px-2.5 py-1 rounded-full font-medium" style={{ background: "oklch(0.92 0.08 255)", color: "oklch(0.42 0.18 255)" }}>
-              {currentUser.department}
+              {(emp as any)?.orgUnit?.name ?? "—"}
             </span>
             <span className="text-xs" style={{ color: "oklch(0.55 0.012 65)", fontFamily: "'JetBrains Mono', monospace" }}>
-              {currentUser.id}
+              {emp?.employeeCode ?? "—"}
             </span>
           </div>
         </div>
@@ -81,12 +98,12 @@ export default function MyInformation() {
             <h4 className="text-sm font-semibold mb-3" style={{ color: "oklch(0.22 0.012 65)", fontFamily: "'DM Sans', sans-serif" }}>
               Personal Information
             </h4>
-            <InfoRow label="Full Name" value={currentUser.name} />
-            <InfoRow label="Employee ID" value={currentUser.id} />
-            <InfoRow label="Email" value={currentUser.email} />
-            <InfoRow label="Phone" value={currentUser.phone} />
-            <InfoRow label="Nationality" value={currentUser.nationality} />
-            <InfoRow label="Emergency Contact" value={currentUser.emergencyContact} />
+            <InfoRow label="Full Name" value={fullName} />
+            <InfoRow label="Employee Code" value={emp?.employeeCode} />
+            <InfoRow label="Email" value={emp?.email} />
+            <InfoRow label="Phone" value={emp?.phone} />
+            <InfoRow label="Nationality" value={emp?.nationality} />
+            <InfoRow label="Emergency Contact" value={emp?.emergencyContact} />
           </div>
         </TabsContent>
 
@@ -95,14 +112,14 @@ export default function MyInformation() {
             <h4 className="text-sm font-semibold mb-3" style={{ color: "oklch(0.22 0.012 65)", fontFamily: "'DM Sans', sans-serif" }}>
               Employment Information
             </h4>
-            <InfoRow label="Employment Type" value={currentUser.employmentType} />
-            <InfoRow label="Start Date" value={new Date(currentUser.startDate).toLocaleDateString("en-SG", { day: "numeric", month: "long", year: "numeric" })} />
-            <InfoRow label="Contract End" value={currentUser.contractEndDate || "Permanent"} />
-            <InfoRow label="Position" value={currentUser.position} />
-            <InfoRow label="Role" value={currentUser.role} />
-            <InfoRow label="Department" value={currentUser.department} />
-            <InfoRow label="Manager" value={currentUser.managerName} />
-            <InfoRow label="Work Location" value={currentUser.workLocation} />
+            <InfoRow label="Employment Type" value={emp?.employmentType} />
+            <InfoRow label="Employee Role" value={(emp as any)?.employeeRole} />
+            <InfoRow label="Start Date" value={emp?.startDate ? new Date(emp.startDate).toLocaleDateString("en-SG", { day: "numeric", month: "long", year: "numeric" }) : undefined} />
+            <InfoRow label="Contract End" value={emp?.contractEndDate ? new Date(emp.contractEndDate).toLocaleDateString("en-SG", { day: "numeric", month: "long", year: "numeric" }) : "Permanent"} />
+            <InfoRow label="Position" value={emp?.position} />
+            <InfoRow label="Team / Org Unit" value={(emp as any)?.orgUnit?.name} />
+            <InfoRow label="Work Location" value={emp?.workLocation} />
+            <InfoRow label="Status" value={emp?.status} />
           </div>
         </TabsContent>
 
@@ -111,38 +128,59 @@ export default function MyInformation() {
             <h4 className="text-sm font-semibold mb-3" style={{ color: "oklch(0.22 0.012 65)", fontFamily: "'DM Sans', sans-serif" }}>
               My Documents
             </h4>
-            <div className="space-y-2">
-              {documents.map((doc, i) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
-                  style={{ border: "1px solid oklch(0.88 0.006 80)" }}
-                >
+            {docsLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 size={22} className="animate-spin" style={{ color: "oklch(0.42 0.18 255)" }} />
+              </div>
+            ) : documents.length === 0 ? (
+              <div className="text-center py-10">
+                <FileText size={32} className="mx-auto mb-3" style={{ color: "oklch(0.82 0.006 80)" }} />
+                <p className="text-sm" style={{ color: "oklch(0.65 0.012 65)" }}>No documents on file yet.</p>
+                <p className="text-xs mt-1" style={{ color: "oklch(0.72 0.006 80)" }}>Contact HR to upload your CV or contract.</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {(documents as any[]).map((doc) => (
                   <div
-                    className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
-                    style={{ background: "oklch(0.95 0.06 27)" }}
+                    key={doc.id}
+                    className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
+                    style={{ border: "1px solid oklch(0.88 0.006 80)" }}
                   >
-                    <FileText size={16} style={{ color: "oklch(0.52 0.2 27)" }} />
+                    <div
+                      className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
+                      style={{ background: "oklch(0.95 0.06 27)" }}
+                    >
+                      <FileText size={16} style={{ color: "oklch(0.52 0.2 27)" }} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium" style={{ color: "oklch(0.22 0.012 65)" }}>
+                        {doc.name}
+                      </p>
+                      <p className="text-xs" style={{ color: "oklch(0.55 0.012 65)" }}>
+                        {doc.fileType}
+                        {doc.issueDate && ` · ${new Date(doc.issueDate).toLocaleDateString("en-SG", { day: "numeric", month: "short", year: "numeric" })}`}
+                      </p>
+                    </div>
+                    {doc.fileUrl ? (
+                      <a
+                        href={doc.fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors hover:bg-blue-50"
+                        style={{ color: "oklch(0.42 0.18 255)", border: "1px solid oklch(0.85 0.08 255)" }}
+                      >
+                        <Download size={12} />
+                        Download
+                      </a>
+                    ) : (
+                      <span className="text-xs px-3 py-1.5 rounded-md" style={{ color: "oklch(0.72 0.006 80)", border: "1px solid oklch(0.90 0.006 80)" }}>
+                        No file
+                      </span>
+                    )}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium" style={{ color: "oklch(0.22 0.012 65)" }}>
-                      {doc.name}
-                    </p>
-                    <p className="text-xs" style={{ color: "oklch(0.55 0.012 65)" }}>
-                      {new Date(doc.date).toLocaleDateString("en-SG", { day: "numeric", month: "short", year: "numeric" })} · {doc.type}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => toast.success(`Downloading ${doc.name}...`)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors hover:bg-blue-50"
-                    style={{ color: "oklch(0.42 0.18 255)", border: "1px solid oklch(0.85 0.08 255)" }}
-                  >
-                    <Download size={12} />
-                    Download
-                  </button>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </TabsContent>
       </Tabs>

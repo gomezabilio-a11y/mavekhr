@@ -49,7 +49,7 @@ const navItems: NavItem[] = [
   { id: 5, label: "Financial History", icon: DollarSign, path: "/financial-history" },
   { id: 6, label: "Performance Results", icon: BarChart2, path: "/performance-results" },
   { id: 7, label: "Periodic Evaluation", icon: ClipboardList, path: "/periodic-evaluation", badge: 2 },
-  { id: 8, label: "Leave Management", icon: Calendar, path: "/leave-management", comingSoon: true },
+  { id: 8, label: "Leave Management", icon: Calendar, path: "/leave-management" },
   { id: 9, label: "Company Documents", icon: FileText, path: "/company-documents", comingSoon: true },
   { id: 10, label: "Training", icon: GraduationCap, path: "/training", comingSoon: true },
   { id: 11, label: "Announcements", icon: Megaphone, path: "/announcements", comingSoon: true },

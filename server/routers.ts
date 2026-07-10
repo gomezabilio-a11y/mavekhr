@@ -1,9 +1,13 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
+import bcrypt from "bcryptjs";
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
+import { getDb } from "./db";
+import { users } from "../drizzle/schema";
+import { eq } from "drizzle-orm";
 import {
   getAllOrgUnits, createOrgUnit, updateOrgUnit, deleteOrgUnit,
   getAllEmployees, getEmployeeById, getEmployeeByUserId, searchEmployees,
@@ -19,6 +23,10 @@ import {
   getCategoriesByFormId, createFormCategory, updateFormCategory, deleteFormCategory,
   getKpisByCategoryId, createFormKpi, updateFormKpi, deleteFormKpi,
   getResponseByTaskId, createEvaluationResponse, getKpiResponsesByResponseId,
+  getAllLeaveTypes, createLeaveType, updateLeaveType, deleteLeaveType,
+  getLeaveBalances, upsertLeaveBalance,
+  getLeaveRequests, getPendingLeaveRequestsForManager, getAllLeaveRequestsAdmin,
+  createLeaveRequest, approveLeaveRequest, cancelLeaveRequest,
 } from "./db";
 
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -38,6 +46,37 @@ export const appRouter = router({
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
       return { success: true } as const;
     }),
+    changePassword: protectedProcedure
+      .input(z.object({
+        currentPassword: z.string().min(1),
+        newPassword: z.string().min(8),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB not available" });
+        const userRows = await db.select().from(users).where(eq(users.id, ctx.user.id)).limit(1);
+        const user = userRows[0];
+        if (!user?.passwordHash) throw new TRPCError({ code: "BAD_REQUEST", message: "No password set" });
+        const valid = await bcrypt.compare(input.currentPassword, user.passwordHash);
+        if (!valid) throw new TRPCError({ code: "UNAUTHORIZED", message: "Current password is incorrect" });
+        const hash = await bcrypt.hash(input.newPassword, 12);
+        await db.update(users).set({ passwordHash: hash }).where(eq(users.id, ctx.user.id));
+        return { success: true };
+      }),
+    // Admin: set or reset a user's password by userId
+    setPassword: protectedProcedure
+      .input(z.object({
+        userId: z.number(),
+        newPassword: z.string().min(8),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB not available" });
+        const hash = await bcrypt.hash(input.newPassword, 12);
+        await db.update(users).set({ passwordHash: hash }).where(eq(users.id, input.userId));
+        return { success: true };
+      }),
   }),
 
   orgUnit: router({
@@ -85,6 +124,7 @@ export const appRouter = router({
         phone: z.string().optional(),
         nationality: z.string().optional(),
         position: z.string().min(1),
+        employeeRole: z.enum(["regular", "contractor"]).default("regular"),
         employmentType: z.enum(["full-time", "part-time", "contract", "intern"]).default("full-time"),
         workLocation: z.string().optional(),
         startDate: z.string(),
@@ -93,22 +133,43 @@ export const appRouter = router({
         orgUnitId: z.number().optional(),
         managerId: z.number().optional(),
         isManager: z.boolean().default(false),
-        userId: z.number().optional(),
         photoUrl: z.string().optional(),
         emergencyContact: z.string().optional(),
+        password: z.string().min(8).optional(), // initial password set by admin
       }))
-      .mutation(({ input }) => {
+      .mutation(async ({ input }) => {
         const toMysqlDate = (v: string | null | undefined) => {
           if (!v || v.trim() === "") return undefined;
           const d = new Date(v);
           if (isNaN(d.getTime())) return undefined;
           return d.toISOString().slice(0, 10);
         };
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB not available" });
+
+        // Create a user account for this employee
+        const { password, ...empInput } = input;
+        const openId = `emp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        const passwordHash = password ? await bcrypt.hash(password, 12) : null;
+        await db.insert(users).values({
+          openId,
+          name: `${empInput.firstName} ${empInput.lastName}`,
+          email: empInput.email,
+          loginMethod: "password",
+          passwordHash: passwordHash ?? undefined,
+          role: "user",
+          lastSignedIn: new Date(),
+        });
+        // Get the newly created user id
+        const userRows = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
+        const userId = userRows[0]?.id;
+
         const data = {
-          ...input,
-          startDate: toMysqlDate(input.startDate) ?? input.startDate,
-          contractEndDate: toMysqlDate(input.contractEndDate),
-          managerId: input.managerId ?? undefined,
+          ...empInput,
+          startDate: toMysqlDate(empInput.startDate) ?? empInput.startDate,
+          contractEndDate: toMysqlDate(empInput.contractEndDate),
+          managerId: empInput.managerId ?? undefined,
+          userId,
         };
         return createEmployee(data as any);
       }),
@@ -426,6 +487,88 @@ export const appRouter = router({
     delete: adminProcedure
       .input(z.object({ id: z.number() }))
       .mutation(({ input }) => deleteFormKpi(input.id)),
+  }),
+
+  // ─── Leave Management ─────────────────────────────────────────────────────
+  leave: router({
+    // Leave Types (admin managed)
+    listTypes: protectedProcedure.query(() => getAllLeaveTypes()),
+    createType: adminProcedure
+      .input(z.object({ name: z.string(), description: z.string().optional(), defaultDays: z.number().default(0), isActive: z.boolean().default(true) }))
+      .mutation(({ input }) => createLeaveType(input as any)),
+    updateType: adminProcedure
+      .input(z.object({ id: z.number(), name: z.string().optional(), description: z.string().optional(), defaultDays: z.number().optional(), isActive: z.boolean().optional() }))
+      .mutation(({ input }) => { const { id, ...data } = input; return updateLeaveType(id, data as any); }),
+    deleteType: adminProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(({ input }) => deleteLeaveType(input.id)),
+
+    // Leave Balances
+    myBalances: protectedProcedure
+      .input(z.object({ year: z.number().optional() }))
+      .query(async ({ ctx, input }) => {
+        const emp = await getEmployeeByUserId(ctx.user.id);
+        if (!emp) return [];
+        const year = input.year ?? new Date().getFullYear();
+        return getLeaveBalances(emp.id, year);
+      }),
+    getBalances: adminProcedure
+      .input(z.object({ employeeId: z.number(), year: z.number().optional() }))
+      .query(({ input }) => getLeaveBalances(input.employeeId, input.year ?? new Date().getFullYear())),
+    setBalance: adminProcedure
+      .input(z.object({ employeeId: z.number(), leaveTypeId: z.number(), year: z.number(), totalDays: z.number() }))
+      .mutation(({ input }) => upsertLeaveBalance(input.employeeId, input.leaveTypeId, input.year, input.totalDays)),
+
+    // Leave Requests
+    myRequests: protectedProcedure.query(async ({ ctx }) => {
+      const emp = await getEmployeeByUserId(ctx.user.id);
+      if (!emp) return [];
+      return getLeaveRequests(emp.id);
+    }),
+    submit: protectedProcedure
+      .input(z.object({
+        leaveTypeId: z.number(),
+        startDate: z.string(),
+        endDate: z.string(),
+        totalDays: z.number(),
+        reason: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const emp = await getEmployeeByUserId(ctx.user.id);
+        if (!emp) throw new TRPCError({ code: "NOT_FOUND", message: "Employee not found" });
+        return createLeaveRequest({ ...input as any, employeeId: emp.id });
+      }),
+    cancel: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const emp = await getEmployeeByUserId(ctx.user.id);
+        if (!emp) throw new TRPCError({ code: "NOT_FOUND", message: "Employee not found" });
+        return cancelLeaveRequest(input.id, emp.id);
+      }),
+
+    // Manager approval
+    pendingForMe: protectedProcedure.query(async ({ ctx }) => {
+      const emp = await getEmployeeByUserId(ctx.user.id);
+      if (!emp) return [];
+      return getPendingLeaveRequestsForManager(emp.id);
+    }),
+    approve: protectedProcedure
+      .input(z.object({ id: z.number(), approved: z.boolean(), comment: z.string().optional() }))
+      .mutation(async ({ ctx, input }) => {
+        const emp = await getEmployeeByUserId(ctx.user.id);
+        if (!emp) throw new TRPCError({ code: "NOT_FOUND", message: "Employee not found" });
+        return approveLeaveRequest(input.id, emp.id, input.approved, input.comment);
+      }),
+
+    // Admin: all requests
+    allRequests: adminProcedure.query(() => getAllLeaveRequestsAdmin()),
+    adminApprove: adminProcedure
+      .input(z.object({ id: z.number(), approved: z.boolean(), comment: z.string().optional() }))
+      .mutation(async ({ ctx, input }) => {
+        const emp = await getEmployeeByUserId(ctx.user.id);
+        const approverId = emp?.id ?? 0;
+        return approveLeaveRequest(input.id, approverId, input.approved, input.comment);
+      }),
   }),
 
   // ─── Evaluation Responses ──────────────────────────────────────────────────

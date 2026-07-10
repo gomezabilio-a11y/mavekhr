@@ -2,8 +2,9 @@ import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
-import { Plus, Search, Edit2, Trash2, X, Users, Upload, Camera } from "lucide-react";
+import { Plus, Search, Edit2, Trash2, X, Users, Upload, Camera, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
+import AdminEmployeeDocuments from "./AdminEmployeeDocuments";
 
 type EmployeeForm = {
   employeeCode: string;
@@ -24,6 +25,7 @@ type EmployeeForm = {
   isManager: boolean;
   photoUrl: string;
   emergencyContact: string;
+  password: string;
 };
 
 // Normalize any date value to YYYY-MM-DD string for <input type="date">
@@ -39,8 +41,49 @@ const emptyForm: EmployeeForm = {
   phone: "", nationality: "", position: "",
   employmentType: "full-time", employeeRole: "regular", workLocation: "", startDate: "",
   contractEndDate: "", status: "active", orgUnitId: "", managerId: "",
-  isManager: false, photoUrl: "", emergencyContact: "",
+  isManager: false, photoUrl: "", emergencyContact: "", password: "",
 };
+
+function ResetPasswordSection({ employeeId, employees }: { employeeId: number; employees: any[] }) {
+  const [newPw, setNewPw] = useState("");
+  const [show, setShow] = useState(false);
+  const resetMutation = trpc.auth.setPassword.useMutation({
+    onSuccess: () => { setNewPw(""); setShow(false); toast.success("Password reset successfully"); },
+    onError: (e) => toast.error(e.message),
+  });
+  const emp = employees.find(e => e.id === employeeId);
+  if (!emp?.userId) return (
+    <p className="text-xs" style={{ color: "oklch(0.72 0.006 80)" }}>No user account linked to this employee.</p>
+  );
+  return (
+    <div>
+      <button type="button" onClick={() => setShow(s => !s)}
+        className="text-xs underline" style={{ color: "oklch(0.42 0.18 255)" }}>
+        {show ? "Cancel password reset" : "Reset password"}
+      </button>
+      {show && (
+        <div className="mt-2 flex gap-2">
+          <input
+            type="password"
+            value={newPw}
+            onChange={e => setNewPw(e.target.value)}
+            placeholder="New password (min. 8 chars)"
+            minLength={8}
+            className="flex-1 px-3 py-2 rounded-lg border text-xs"
+            style={{ borderColor: "oklch(0.88 0.006 80)", background: "oklch(0.97 0.006 80)" }}
+          />
+          <button type="button"
+            disabled={newPw.length < 8 || resetMutation.isPending}
+            onClick={() => resetMutation.mutate({ userId: emp.userId!, newPassword: newPw })}
+            className="px-3 py-2 rounded-lg text-xs font-medium text-white disabled:opacity-50"
+            style={{ background: "oklch(0.42 0.18 255)" }}>
+            {resetMutation.isPending ? "Saving..." : "Save"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function AdminEmployees() {
   const [location] = useLocation();
@@ -49,6 +92,7 @@ export default function AdminEmployees() {
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState<EmployeeForm>(emptyForm);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+  const [docEmployee, setDocEmployee] = useState<{ id: number; firstName: string; lastName: string } | null>(null);
 
   const utils = trpc.useUtils();
   const { data: employees = [], isLoading } = trpc.employee.list.useQuery();
@@ -98,6 +142,7 @@ export default function AdminEmployees() {
       employeeRole: (emp as any).employeeRole ?? "regular",
       photoUrl: emp.photoUrl ?? "",
       emergencyContact: emp.emergencyContact ?? "",
+      password: "", // don't pre-fill password on edit
     });
     setPhotoPreview("");
     setShowForm(true);
@@ -112,8 +157,9 @@ export default function AdminEmployees() {
     const contractEndDate = form.contractEndDate && form.contractEndDate.trim() !== ""
       ? toDateInput(form.contractEndDate)
       : undefined;
+    const { password, ...formWithoutPassword } = form;
     const payload = {
-      ...form,
+      ...formWithoutPassword,
       startDate: toDateInput(form.startDate),
       contractEndDate,
       orgUnitId,
@@ -122,7 +168,7 @@ export default function AdminEmployees() {
     if (editId) {
       updateMutation.mutate({ id: editId, ...payload });
     } else {
-      createMutation.mutate(payload as any);
+      createMutation.mutate({ ...payload, password: password || undefined } as any);
     }
   }
 
@@ -257,6 +303,9 @@ export default function AdminEmployees() {
                         <div className="flex items-center gap-1">
                           <button onClick={() => handleEdit(emp)} className="p-1.5 rounded hover:bg-blue-50 transition-colors" title="Edit">
                             <Edit2 size={13} style={{ color: "oklch(0.42 0.18 255)" }} />
+                          </button>
+                          <button onClick={() => setDocEmployee({ id: emp.id, firstName: emp.firstName, lastName: emp.lastName })} className="p-1.5 rounded hover:bg-green-50 transition-colors" title="Documents">
+                            <FileText size={13} style={{ color: "oklch(0.42 0.18 145)" }} />
                           </button>
                           <button onClick={() => setDeleteConfirm(emp.id)} className="p-1.5 rounded hover:bg-red-50 transition-colors" title="Delete">
                             <Trash2 size={13} style={{ color: "oklch(0.52 0.18 25)" }} />
@@ -425,6 +474,30 @@ export default function AdminEmployees() {
                     This employee is a manager
                   </label>
                 </div>
+                {/* Password field — only shown when creating a new employee */}
+                {!editId && (
+                  <div className="col-span-2">
+                    <label className="block text-xs font-medium mb-1" style={{ color: "oklch(0.45 0.012 65)" }}>
+                      Initial Password
+                      <span className="ml-1 font-normal" style={{ color: "oklch(0.72 0.006 80)" }}>(min. 8 characters — share with employee)</span>
+                    </label>
+                    <input
+                      type="password"
+                      value={form.password}
+                      onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+                      placeholder="Set a temporary password"
+                      minLength={8}
+                      className={inputCls}
+                      style={inputStyle}
+                    />
+                  </div>
+                )}
+                {/* Reset password button — only shown when editing */}
+                {editId && (
+                  <div className="col-span-2">
+                    <ResetPasswordSection employeeId={editId} employees={employees} />
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-3 pt-2">
@@ -466,6 +539,14 @@ export default function AdminEmployees() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Documents Modal */}
+      {docEmployee && (
+        <AdminEmployeeDocuments
+          employee={docEmployee}
+          onClose={() => setDocEmployee(null)}
+        />
       )}
     </div>
   );

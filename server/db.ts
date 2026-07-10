@@ -1,4 +1,4 @@
-import { eq, desc, sql } from "drizzle-orm";
+import { eq, desc, sql, and, asc, ne } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   users, InsertUser,
@@ -16,6 +16,9 @@ import {
   formKpis, InsertFormKpi,
   evaluationResponses,
   kpiResponses,
+  leaveTypes, InsertLeaveType,
+  leaveBalances, InsertLeaveBalance,
+  leaveRequests, InsertLeaveRequest,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -513,4 +516,204 @@ export async function getKpiResponsesByResponseId(responseId: number) {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(kpiResponses).where(eq(kpiResponses.responseId, responseId));
+}
+
+// ─── Leave Management ─────────────────────────────────────────────────────────
+
+export async function getAllLeaveTypes() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(leaveTypes).orderBy(asc(leaveTypes.name));
+}
+
+export async function createLeaveType(data: InsertLeaveType) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.insert(leaveTypes).values(data);
+}
+
+export async function updateLeaveType(id: number, data: Partial<InsertLeaveType>) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(leaveTypes).set(data).where(eq(leaveTypes.id, id));
+}
+
+export async function deleteLeaveType(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.delete(leaveTypes).where(eq(leaveTypes.id, id));
+}
+
+export async function getLeaveBalances(employeeId: number, year: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db
+    .select({
+      id: leaveBalances.id,
+      employeeId: leaveBalances.employeeId,
+      leaveTypeId: leaveBalances.leaveTypeId,
+      year: leaveBalances.year,
+      totalDays: leaveBalances.totalDays,
+      usedDays: leaveBalances.usedDays,
+      leaveTypeName: leaveTypes.name,
+      leaveTypeDescription: leaveTypes.description,
+    })
+    .from(leaveBalances)
+    .leftJoin(leaveTypes, eq(leaveBalances.leaveTypeId, leaveTypes.id))
+    .where(and(eq(leaveBalances.employeeId, employeeId), eq(leaveBalances.year, year)));
+  return rows;
+}
+
+export async function upsertLeaveBalance(employeeId: number, leaveTypeId: number, year: number, totalDays: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const existing = await db.select().from(leaveBalances)
+    .where(and(eq(leaveBalances.employeeId, employeeId), eq(leaveBalances.leaveTypeId, leaveTypeId), eq(leaveBalances.year, year)))
+    .limit(1);
+  if (existing.length > 0) {
+    await db.update(leaveBalances).set({ totalDays }).where(eq(leaveBalances.id, existing[0].id));
+  } else {
+    await db.insert(leaveBalances).values({ employeeId, leaveTypeId, year, totalDays, usedDays: 0 });
+  }
+}
+
+export async function getLeaveRequests(employeeId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db
+    .select({
+      id: leaveRequests.id,
+      employeeId: leaveRequests.employeeId,
+      leaveTypeId: leaveRequests.leaveTypeId,
+      startDate: leaveRequests.startDate,
+      endDate: leaveRequests.endDate,
+      totalDays: leaveRequests.totalDays,
+      reason: leaveRequests.reason,
+      status: leaveRequests.status,
+      approverId: leaveRequests.approverId,
+      approverComment: leaveRequests.approverComment,
+      approvedAt: leaveRequests.approvedAt,
+      createdAt: leaveRequests.createdAt,
+      leaveTypeName: leaveTypes.name,
+    })
+    .from(leaveRequests)
+    .leftJoin(leaveTypes, eq(leaveRequests.leaveTypeId, leaveTypes.id))
+    .where(eq(leaveRequests.employeeId, employeeId))
+    .orderBy(desc(leaveRequests.createdAt));
+  return rows;
+}
+
+export async function getPendingLeaveRequestsForManager(managerId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  // Get all employees whose managerId = this manager's employee id
+  const directReports = await db.select({ id: employees.id, firstName: employees.firstName, lastName: employees.lastName })
+    .from(employees).where(eq(employees.managerId, managerId));
+  if (directReports.length === 0) return [];
+  const reportIds = directReports.map(e => e.id);
+
+  const rows = await db
+    .select({
+      id: leaveRequests.id,
+      employeeId: leaveRequests.employeeId,
+      leaveTypeId: leaveRequests.leaveTypeId,
+      startDate: leaveRequests.startDate,
+      endDate: leaveRequests.endDate,
+      totalDays: leaveRequests.totalDays,
+      reason: leaveRequests.reason,
+      status: leaveRequests.status,
+      approverId: leaveRequests.approverId,
+      approverComment: leaveRequests.approverComment,
+      approvedAt: leaveRequests.approvedAt,
+      createdAt: leaveRequests.createdAt,
+      leaveTypeName: leaveTypes.name,
+      employeeFirstName: employees.firstName,
+      employeeLastName: employees.lastName,
+      employeePosition: employees.position,
+      employeePhotoUrl: employees.photoUrl,
+    })
+    .from(leaveRequests)
+    .leftJoin(leaveTypes, eq(leaveRequests.leaveTypeId, leaveTypes.id))
+    .leftJoin(employees, eq(leaveRequests.employeeId, employees.id))
+    .where(and(
+      sql`${leaveRequests.employeeId} IN (${sql.join(reportIds.map(id => sql`${id}`), sql`, `)})`,
+      eq(leaveRequests.status, "pending")
+    ))
+    .orderBy(asc(leaveRequests.startDate));
+  return rows;
+}
+
+export async function getAllLeaveRequestsAdmin() {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db
+    .select({
+      id: leaveRequests.id,
+      employeeId: leaveRequests.employeeId,
+      leaveTypeId: leaveRequests.leaveTypeId,
+      startDate: leaveRequests.startDate,
+      endDate: leaveRequests.endDate,
+      totalDays: leaveRequests.totalDays,
+      reason: leaveRequests.reason,
+      status: leaveRequests.status,
+      approverId: leaveRequests.approverId,
+      approverComment: leaveRequests.approverComment,
+      approvedAt: leaveRequests.approvedAt,
+      createdAt: leaveRequests.createdAt,
+      leaveTypeName: leaveTypes.name,
+      employeeFirstName: employees.firstName,
+      employeeLastName: employees.lastName,
+      employeePosition: employees.position,
+    })
+    .from(leaveRequests)
+    .leftJoin(leaveTypes, eq(leaveRequests.leaveTypeId, leaveTypes.id))
+    .leftJoin(employees, eq(leaveRequests.employeeId, employees.id))
+    .orderBy(desc(leaveRequests.createdAt));
+  return rows;
+}
+
+export async function createLeaveRequest(data: InsertLeaveRequest) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.insert(leaveRequests).values({ ...data, status: "pending", createdAt: new Date(), updatedAt: new Date() });
+  return (result as any)[0]?.insertId ?? (result as any).insertId;
+}
+
+export async function approveLeaveRequest(id: number, approverId: number, approved: boolean, comment?: string) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const status = approved ? "approved" : "rejected";
+  await db.update(leaveRequests).set({
+    status,
+    approverId,
+    approverComment: comment ?? null,
+    approvedAt: new Date(),
+    updatedAt: new Date(),
+  }).where(eq(leaveRequests.id, id));
+
+  // If approved, increment usedDays in leaveBalances
+  if (approved) {
+    const reqRows = await db.select().from(leaveRequests).where(eq(leaveRequests.id, id)).limit(1);
+    const req = reqRows[0];
+    if (req) {
+      const year = new Date(req.startDate).getFullYear();
+      const balRows = await db.select().from(leaveBalances)
+        .where(and(eq(leaveBalances.employeeId, req.employeeId), eq(leaveBalances.leaveTypeId, req.leaveTypeId), eq(leaveBalances.year, year)))
+        .limit(1);
+      if (balRows.length > 0) {
+        await db.update(leaveBalances)
+          .set({ usedDays: sql`${leaveBalances.usedDays} + ${req.totalDays}` })
+          .where(eq(leaveBalances.id, balRows[0].id));
+      }
+    }
+  }
+}
+
+export async function cancelLeaveRequest(id: number, employeeId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  // Only pending requests can be cancelled
+  await db.update(leaveRequests)
+    .set({ status: "cancelled", updatedAt: new Date() })
+    .where(and(eq(leaveRequests.id, id), eq(leaveRequests.employeeId, employeeId), eq(leaveRequests.status, "pending")));
 }

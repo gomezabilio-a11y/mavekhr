@@ -48,3 +48,15 @@
 - [x] Admin: Evaluation Form Builder page (5 form types, category/KPI editor)
 - [x] Employee portal: Periodic Evaluation page shows real form with 1-5 scoring
 - [x] Contractor: no self-evaluation, only peer evaluation available
+
+## Auth + Documents + Leave Management
+- [ ] DB schema: passwordHash in users, employeeDocuments table, leaveTypes/leaveBalances/leaveRequests tables
+- [ ] DB migration
+- [ ] Install bcrypt, build email+password login/logout API
+- [ ] Login page (email + password, replace OAuth)
+- [ ] Admin: set password when creating/editing employee
+- [ ] Admin: document upload (CV, contract) per employee
+- [ ] Employee portal: My Info Documents tab connected to real DB
+- [ ] Leave Management page (employee: apply, view status, balance)
+- [ ] Leave Management: manager approval page
+- [ ] Leave balance management (admin sets annual/sick leave days per employee)

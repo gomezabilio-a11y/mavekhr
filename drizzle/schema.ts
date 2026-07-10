@@ -17,6 +17,7 @@ export const users = mysqlTable("users", {
   name: text("name"),
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
+  passwordHash: varchar("passwordHash", { length: 256 }),  // bcrypt hash for email+password login
   role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
@@ -253,3 +254,51 @@ export const kpiResponses = mysqlTable("kpi_responses", {
 });
 
 export type KpiResponse = typeof kpiResponses.$inferSelect;
+
+// ─── Leave Types ──────────────────────────────────────────────────────────────
+export const leaveTypes = mysqlTable("leave_types", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 64 }).notNull(),          // e.g. "Annual Leave", "Sick Leave"
+  description: text("description"),
+  defaultDays: int("defaultDays").default(0).notNull(),     // default allocation per year
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type LeaveType = typeof leaveTypes.$inferSelect;
+export type InsertLeaveType = typeof leaveTypes.$inferInsert;
+
+// ─── Leave Balances ───────────────────────────────────────────────────────────
+export const leaveBalances = mysqlTable("leave_balances", {
+  id: int("id").autoincrement().primaryKey(),
+  employeeId: int("employeeId").notNull(),
+  leaveTypeId: int("leaveTypeId").notNull(),
+  year: int("year").notNull(),
+  totalDays: int("totalDays").notNull(),
+  usedDays: int("usedDays").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type LeaveBalance = typeof leaveBalances.$inferSelect;
+export type InsertLeaveBalance = typeof leaveBalances.$inferInsert;
+
+// ─── Leave Requests ───────────────────────────────────────────────────────────
+export const leaveRequests = mysqlTable("leave_requests", {
+  id: int("id").autoincrement().primaryKey(),
+  employeeId: int("employeeId").notNull(),
+  leaveTypeId: int("leaveTypeId").notNull(),
+  startDate: date("startDate").notNull(),
+  endDate: date("endDate").notNull(),
+  totalDays: int("totalDays").notNull(),
+  reason: text("reason"),
+  status: mysqlEnum("status", ["pending", "approved", "rejected", "cancelled"]).default("pending").notNull(),
+  approverId: int("approverId"),          // manager who approved/rejected
+  approverComment: text("approverComment"),
+  approvedAt: timestamp("approvedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type LeaveRequest = typeof leaveRequests.$inferSelect;
+export type InsertLeaveRequest = typeof leaveRequests.$inferInsert;
