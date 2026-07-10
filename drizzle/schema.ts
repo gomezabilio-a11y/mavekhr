@@ -89,6 +89,19 @@ export const salaryRecords = mysqlTable("salary_records", {
 export type SalaryRecord = typeof salaryRecords.$inferSelect;
 export type InsertSalaryRecord = typeof salaryRecords.$inferInsert;
 
+// ─── Salary Components (line items per salary record) ────────────────────────
+export const salaryComponents = mysqlTable("salary_components", {
+  id: int("id").autoincrement().primaryKey(),
+  salaryRecordId: int("salaryRecordId").notNull(),
+  type: mysqlEnum("type", ["earning", "deduction"]).default("earning").notNull(),
+  label: varchar("label", { length: 128 }).notNull(),
+  amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type SalaryComponent = typeof salaryComponents.$inferSelect;
+export type InsertSalaryComponent = typeof salaryComponents.$inferInsert;
+
 // ─── Performance Results ──────────────────────────────────────────────────────
 export const performanceResults = mysqlTable("performance_results", {
   id: int("id").autoincrement().primaryKey(),

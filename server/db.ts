@@ -5,6 +5,7 @@ import {
   employees, InsertEmployee,
   orgUnits, InsertOrgUnit,
   salaryRecords, InsertSalaryRecord,
+  salaryComponents, InsertSalaryComponent,
   performanceResults, InsertPerformanceResult,
   performanceCategoryScores,
   evaluationCycles,
@@ -212,7 +213,29 @@ export async function updateSalaryRecord(id: number, data: Partial<InsertSalaryR
 export async function deleteSalaryRecord(id: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
+  await db.delete(salaryComponents).where(eq(salaryComponents.salaryRecordId, id));
   await db.delete(salaryRecords).where(eq(salaryRecords.id, id));
+}
+
+// ─── Salary Components ──────────────────────────────────────────────────────
+export async function getSalaryComponents(salaryRecordId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(salaryComponents)
+    .where(eq(salaryComponents.salaryRecordId, salaryRecordId))
+    .orderBy(salaryComponents.type, salaryComponents.id);
+}
+
+export async function setSalaryComponents(salaryRecordId: number, items: Array<{ type: 'earning' | 'deduction'; label: string; amount: string }>) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  // Replace all components for this record
+  await db.delete(salaryComponents).where(eq(salaryComponents.salaryRecordId, salaryRecordId));
+  if (items.length > 0) {
+    await db.insert(salaryComponents).values(
+      items.map(item => ({ salaryRecordId, ...item }))
+    );
+  }
 }
 
 // ─── Performance Results ──────────────────────────────────────────────────────

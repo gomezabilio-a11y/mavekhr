@@ -13,6 +13,7 @@ import {
   getAllEmployees, getEmployeeById, getEmployeeByUserId, searchEmployees,
   createEmployee, updateEmployee, deleteEmployee, getTeamMembers,
   getSalaryRecords, createSalaryRecord, updateSalaryRecord, deleteSalaryRecord,
+  getSalaryComponents, setSalaryComponents,
   getPerformanceResults, getPerformanceCategoryScores, createPerformanceResult,
   getEvaluationCycles, getEvaluationCycleById, createEvaluationCycle, updateEvaluationCycle, deleteEvaluationCycle,
   getEvaluationTasksForEmployee, getEvaluationTasksByCycle,
@@ -241,6 +242,19 @@ export const appRouter = router({
     list: protectedProcedure
       .input(z.object({ employeeId: z.number() }))
       .query(({ input }) => getSalaryRecords(input.employeeId)),
+    components: protectedProcedure
+      .input(z.object({ salaryRecordId: z.number() }))
+      .query(({ input }) => getSalaryComponents(input.salaryRecordId)),
+    setComponents: adminProcedure
+      .input(z.object({
+        salaryRecordId: z.number(),
+        items: z.array(z.object({
+          type: z.enum(["earning", "deduction"]),
+          label: z.string().min(1),
+          amount: z.string(),
+        })),
+      }))
+      .mutation(({ input }) => setSalaryComponents(input.salaryRecordId, input.items)),
     create: adminProcedure
       .input(z.object({
         employeeId: z.number(),
@@ -251,8 +265,22 @@ export const appRouter = router({
         status: z.enum(["paid", "pending", "cancelled"]).default("paid"),
         payslipUrl: z.string().optional(),
         nextPaymentDate: z.string().nullable().optional(), // null = N/A
+        components: z.array(z.object({
+          type: z.enum(["earning", "deduction"]),
+          label: z.string().min(1),
+          amount: z.string(),
+        })).optional(),
       }))
-      .mutation(({ input }) => createSalaryRecord(input as any)),
+      .mutation(async ({ input }) => {
+        const { components, ...recordData } = input;
+        await createSalaryRecord(recordData as any);
+        // Get the newly created record id
+        const records = await getSalaryRecords(input.employeeId);
+        const newRecord = records[0]; // most recent
+        if (newRecord && components && components.length > 0) {
+          await setSalaryComponents(newRecord.id, components);
+        }
+      }),
     update: adminProcedure
       .input(z.object({
         id: z.number(),
@@ -263,8 +291,19 @@ export const appRouter = router({
         status: z.enum(["paid", "pending", "cancelled"]).optional(),
         payslipUrl: z.string().optional(),
         nextPaymentDate: z.string().nullable().optional(), // null = N/A
+        components: z.array(z.object({
+          type: z.enum(["earning", "deduction"]),
+          label: z.string().min(1),
+          amount: z.string(),
+        })).optional(),
       }))
-      .mutation(({ input }) => { const { id, ...data } = input; return updateSalaryRecord(id, data as any); }),
+      .mutation(async ({ input }) => {
+        const { id, components, ...data } = input;
+        await updateSalaryRecord(id, data as any);
+        if (components !== undefined) {
+          await setSalaryComponents(id, components);
+        }
+      }),
     delete: adminProcedure
       .input(z.object({ id: z.number() }))
       .mutation(({ input }) => deleteSalaryRecord(input.id)),

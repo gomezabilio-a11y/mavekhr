@@ -138,14 +138,14 @@ export default function Dashboard() {
           </p>
         </div>
 
-        {/* Next Salary */}
+        {/* Next Payment */}
         <div className="hr-card p-4">
           <div className="flex items-start justify-between mb-3">
             <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: "oklch(0.92 0.08 80)" }}>
               <DollarSign size={16} style={{ color: "oklch(0.52 0.15 65)" }} />
             </div>
           </div>
-          <p className="text-xs font-medium mb-0.5" style={{ color: "oklch(0.55 0.012 65)" }}>Next Salary</p>
+          <p className="text-xs font-medium mb-0.5" style={{ color: "oklch(0.55 0.012 65)" }}>Next Payment</p>
           <p className="text-sm font-semibold" style={{ color: "oklch(0.22 0.012 65)", fontFamily: "'DM Sans', sans-serif" }}>
             {empLoading ? <Loader2 size={14} className="animate-spin inline" /> : nextSalaryLabel}
           </p>
