@@ -36,6 +36,12 @@ export default function MyOrganization() {
     { enabled: !!emp?.orgUnitId }
   );
 
+  // My manager (by managerId — can be in a different team)
+  const { data: manager } = trpc.employee.byId.useQuery(
+    { id: emp?.managerId ?? 0 },
+    { enabled: !!emp?.managerId }
+  );
+
   const isLoading = empLoading || pathLoading;
 
   const filtered =
@@ -143,6 +149,61 @@ export default function MyOrganization() {
           </div>
         )}
       </div>
+
+      {/* My Manager */}
+      {emp && (
+        <div className="hr-card p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Users size={16} style={{ color: "oklch(0.42 0.18 255)" }} />
+            <h3 className="text-sm font-semibold" style={{ color: "oklch(0.22 0.012 65)", fontFamily: "'DM Sans', sans-serif" }}>
+              My Manager
+            </h3>
+          </div>
+          {!emp.managerId ? (
+            <div className="flex items-center gap-3 p-3 rounded-lg" style={{ border: "1px solid oklch(0.88 0.006 80)", background: "oklch(0.97 0.006 80)" }}>
+              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "oklch(0.90 0.006 80)" }}>
+                <Users size={16} style={{ color: "oklch(0.65 0.012 65)" }} />
+              </div>
+              <p className="text-sm" style={{ color: "oklch(0.65 0.012 65)" }}>No manager assigned</p>
+            </div>
+          ) : !manager ? (
+            <div className="flex justify-center py-4">
+              <Loader2 size={18} className="animate-spin" style={{ color: "oklch(0.42 0.18 255)" }} />
+            </div>
+          ) : (
+            <div
+              className="flex items-center gap-3 p-4 rounded-xl"
+              style={{ border: "2px solid oklch(0.82 0.12 255)", background: "oklch(0.97 0.04 255)" }}
+            >
+              <div
+                className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden text-sm font-bold text-white"
+                style={{ background: manager.photoUrl ? undefined : "oklch(0.42 0.18 255)" }}
+              >
+                {manager.photoUrl
+                  ? <img src={manager.photoUrl} alt={manager.firstName} className="w-full h-full object-cover" />
+                  : <>{manager.firstName?.[0]}{manager.lastName?.[0]}</>}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="text-sm font-semibold" style={{ color: "oklch(0.22 0.012 65)", fontFamily: "'DM Sans', sans-serif" }}>
+                    {manager.firstName} {manager.lastName}
+                  </p>
+                  <span
+                    className="text-xs px-2 py-0.5 rounded-full font-semibold"
+                    style={{ background: "oklch(0.88 0.12 255)", color: "oklch(0.32 0.18 255)", fontSize: "10px" }}
+                  >
+                    Manager
+                  </span>
+                </div>
+                <p className="text-xs mt-0.5" style={{ color: "oklch(0.55 0.012 65)" }}>{manager.position}</p>
+                {manager.email && (
+                  <p className="text-xs mt-0.5" style={{ color: "oklch(0.62 0.12 255)" }}>{manager.email}</p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* My Team Members */}
       {emp?.orgUnitId && (
