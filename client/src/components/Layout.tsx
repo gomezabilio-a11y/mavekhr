@@ -72,9 +72,18 @@ export default function Layout({ children }: LayoutProps) {
     },
   });
 
+  // Show nothing while checking auth to prevent flash
+  if (loading) return null;
+
   // Redirect to login if not authenticated
-  if (!loading && !isAuthenticated) {
-    navigate("/login");
+  if (!isAuthenticated) {
+    window.location.replace("/login");
+    return null;
+  }
+
+  // Admin accounts should use the Admin Portal, not the Employee Portal
+  if (user?.role === "admin") {
+    window.location.replace("/admin");
     return null;
   }
 

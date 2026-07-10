@@ -31,7 +31,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const { user, isAuthenticated, loading } = useAuth();
   const logout = trpc.auth.logout.useMutation({
-    onSuccess: () => { window.location.href = "/"; },
+    onSuccess: () => { window.location.replace("/login"); },
   });
 
   if (loading) {
@@ -52,16 +52,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   if (user?.role !== "admin") {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4" style={{ background: "oklch(0.97 0.006 80)" }}>
-        <Shield size={40} style={{ color: "oklch(0.62 0.15 25)" }} />
-        <p className="text-sm font-medium" style={{ color: "oklch(0.22 0.012 65)" }}>Access Denied</p>
-        <p className="text-xs" style={{ color: "oklch(0.55 0.012 65)" }}>You do not have admin privileges.</p>
-        <Link href="/" className="text-xs underline" style={{ color: "oklch(0.42 0.18 255)" }}>
-          Back to Employee Portal
-        </Link>
-      </div>
-    );
+    window.location.replace("/");
+    return null;
   }
 
   return (

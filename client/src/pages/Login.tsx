@@ -1,12 +1,18 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
+import { useAuth } from "@/_core/hooks/useAuth";
 
 export default function Login() {
-  const [, navigate] = useLocation();
+  const { user, loading: authLoading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // If already logged in, redirect to appropriate portal
+  if (!authLoading && user) {
+    window.location.replace(user.role === "admin" ? "/admin" : "/");
+    return null;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,9 +32,9 @@ export default function Login() {
       }
       // Redirect based on role
       if (data.role === "admin") {
-        window.location.href = "/admin";
+        window.location.replace("/admin");
       } else {
-        window.location.href = "/";
+        window.location.replace("/");
       }
     } catch (err) {
       setError("Network error. Please try again.");
@@ -62,7 +68,7 @@ export default function Login() {
                 onChange={e => setEmail(e.target.value)}
                 required
                 autoFocus
-                placeholder="you@mavekinc.com"
+                placeholder="you@mavekbcs.com"
                 className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent transition"
               />
             </div>
