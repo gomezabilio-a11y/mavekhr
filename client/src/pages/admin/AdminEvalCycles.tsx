@@ -62,7 +62,6 @@ export default function AdminEvalCycles() {
   const [selectedPeerIds, setSelectedPeerIds] = useState<number[]>([]);
   const [selectedContractorIds, setSelectedContractorIds] = useState<number[]>([]);
   const [selectedManagerId, setSelectedManagerId] = useState<number | null>(null);
-  const [includeUpward, setIncludeUpward] = useState(false);
   const [deleteTaskConfirm, setDeleteTaskConfirm] = useState<number | null>(null);
   const [editParticipantId, setEditParticipantId] = useState<number | null>(null); // participantId being edited
 
@@ -135,7 +134,6 @@ export default function AdminEvalCycles() {
     setSelectedPeerIds([]);
     setSelectedContractorIds([]);
     setSelectedManagerId(null);
-    setIncludeUpward(false);
     setEditParticipantId(null);
   }
 
@@ -149,13 +147,11 @@ export default function AdminEvalCycles() {
       .filter(t => t.type === "contractor")
       .map(t => t.evaluateeId);
     const managerTask = evalTasks.find(t => t.type === "manager");
-    const upwardTask = evalTasks.find(t => t.type === "upward");
     setEditParticipantId(participantId);
     setSelectedEvaluateeId(participantId);
     setSelectedPeerIds(peerIds);
     setSelectedContractorIds(contractorIds);
     setSelectedManagerId(managerTask ? managerTask.evaluateeId : null);
-    setIncludeUpward(!!upwardTask);
     setAssignStep("select_evaluators");
     setShowAssignPanel(true);
   }
@@ -212,10 +208,6 @@ export default function AdminEvalCycles() {
       newTasks.push({ evaluatorId: selectedEvaluateeId, evaluateeId: selectedManagerId, type: "manager" });
     }
 
-    // Upward evaluation: same as manager but uses upward form
-    if (includeUpward && selectedManagerId) {
-      newTasks.push({ evaluatorId: selectedEvaluateeId, evaluateeId: selectedManagerId, type: "upward" });
-    }
 
     bulkCreateTasksMut.mutate({ cycleId: selectedCycleId, tasks: newTasks });
   }
@@ -750,31 +742,7 @@ export default function AdminEvalCycles() {
                       </div>
                     )}
 
-                    {/* Upward Evaluation toggle */}
-                    {!isContractor && selectedManagerId && (
-                      <div>
-                        <p className="text-xs font-semibold mb-2" style={{ color: "oklch(0.45 0.012 65)" }}>
-                          Upward Evaluation (optional)
-                        </p>
-                        <button
-                          onClick={() => setIncludeUpward(v => !v)}
-                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border text-left transition-all"
-                          style={{
-                            borderColor: includeUpward ? "oklch(0.62 0.18 320)" : "oklch(0.90 0.006 80)",
-                            background: includeUpward ? "oklch(0.97 0.04 320)" : "white",
-                          }}
-                        >
-                          <div className="w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0"
-                            style={{ borderColor: includeUpward ? "oklch(0.52 0.18 320)" : "oklch(0.75 0.012 65)", background: includeUpward ? "oklch(0.52 0.18 320)" : "white" }}>
-                            {includeUpward && <span className="text-white text-xs font-bold">✓</span>}
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium" style={{ color: "oklch(0.22 0.012 65)" }}>Include Upward Evaluation</p>
-                            <p className="text-xs" style={{ color: "oklch(0.55 0.012 65)" }}>Participant evaluates their manager</p>
-                          </div>
-                        </button>
-                      </div>
-                    )}
+
 
                     {/* Summary */}
                     <div className="rounded-xl p-3 text-xs space-y-1" style={{ background: "oklch(0.97 0.006 80)" }}>
@@ -783,7 +751,7 @@ export default function AdminEvalCycles() {
                       {selectedPeerIds.length > 0 && <p style={{ color: "oklch(0.55 0.012 65)" }}>• {selectedPeerIds.length} Peer evaluation(s)</p>}
                       {selectedContractorIds.length > 0 && <p style={{ color: "oklch(0.55 0.012 65)" }}>• {selectedContractorIds.length} Contractor evaluation(s)</p>}
                       {selectedManagerId && <p style={{ color: "oklch(0.55 0.012 65)" }}>• 1 Manager evaluation</p>}
-                      {includeUpward && selectedManagerId && <p style={{ color: "oklch(0.42 0.18 320)" }}>• 1 Upward evaluation (participant → manager)</p>}
+
                       {!isContractor && selectedPeerIds.length === 0 && selectedContractorIds.length === 0 && !selectedManagerId && <p style={{ color: "oklch(0.72 0.12 25)" }}>⚠ Only self-evaluation will be created</p>}
                     </div>
                   </div>
