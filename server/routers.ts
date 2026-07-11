@@ -270,6 +270,7 @@ export const appRouter = router({
         phone: z.string().optional(),
         nationality: z.string().optional(),
         position: z.string().optional(),
+        employeeRole: z.enum(["regular", "contractor"]).optional(),
         employmentType: z.enum(["full-time", "part-time", "contract", "intern"]).optional(),
         workLocation: z.string().optional(),
         startDate: z.string().optional(),
