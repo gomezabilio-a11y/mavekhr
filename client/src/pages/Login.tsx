@@ -112,6 +112,12 @@ export default function Login() {
         <p className="text-center text-xs text-slate-400 mt-6">
           Contact your HR administrator if you need access.
         </p>
+        <p className="text-center text-xs text-slate-400 mt-2">
+          Administrator?{" "}
+          <a href="/admin/login" className="text-slate-600 hover:text-slate-800 underline transition font-medium">
+            Sign in to Admin Portal
+          </a>
+        </p>
       </div>
     </div>
   );
