@@ -42,8 +42,7 @@ export type OrgUnit = typeof orgUnits.$inferSelect;
 export type InsertOrgUnit = typeof orgUnits.$inferInsert;
 
 // ─── Employees ────────────────────────────────────────────────────────────────
-// employeeRole: "regular" = full employee (self + peer + manager eval)
-//               "contractor" = contractor (peer eval only, no self-eval)
+// contractor status is derived from employmentType === 'contract' (no separate employeeRole column)
 export const employees = mysqlTable("employees", {
   id: int("id").autoincrement().primaryKey(),
   employeeCode: varchar("employeeCode", { length: 32 }).notNull().unique(),
@@ -53,8 +52,7 @@ export const employees = mysqlTable("employees", {
   phone: varchar("phone", { length: 32 }),
   nationality: varchar("nationality", { length: 64 }),
   position: varchar("position", { length: 128 }).notNull(),
-  employeeRole: mysqlEnum("employeeRole", ["regular", "contractor"]).default("regular").notNull(),
-  employmentType: mysqlEnum("employmentType", ["full-time", "part-time", "contract", "intern"]).default("full-time").notNull(),
+  employmentType: mysqlEnum("employmentType", ["full-time", "part-time", "contract", "intern", "partner-firm"]).default("full-time").notNull(),
   workLocation: varchar("workLocation", { length: 128 }),
   startDate: date("startDate").notNull(),
   contractEndDate: date("contractEndDate"),

@@ -1,0 +1,1 @@
+ALTER TABLE `employees` MODIFY COLUMN `employmentType` enum('full-time','part-time','contract','intern','partner-firm') NOT NULL DEFAULT 'full-time';

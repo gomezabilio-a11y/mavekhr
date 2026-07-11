@@ -15,8 +15,7 @@ type EmployeeForm = {
   phone: string;
   nationality: string;
   position: string;
-  employmentType: "full-time" | "part-time" | "contract" | "intern";
-  employeeRole: "regular" | "contractor";
+  employmentType: "full-time" | "part-time" | "contract" | "intern" | "partner-firm";
   workLocation: string;
   startDate: string;
   contractEndDate: string;
@@ -41,7 +40,7 @@ function toDateInput(val: unknown): string {
 const emptyForm: EmployeeForm = {
   employeeCode: "", firstName: "", lastName: "", email: "",
   phone: "", nationality: "", position: "",
-  employmentType: "full-time", employeeRole: "regular", workLocation: "", startDate: "",
+  employmentType: "full-time" as const, workLocation: "", startDate: "",
   contractEndDate: "", status: "active", orgUnitId: "", managerId: "",
   isManager: false, isAdmin: false, photoUrl: "", emergencyContact: "", password: "",
 };
@@ -142,7 +141,6 @@ export default function AdminEmployees() {
       managerId: emp.managerId?.toString() ?? "",
       isManager: emp.isManager,
       isAdmin: (emp as any).userRole === "admin",
-      employeeRole: (emp as any).employeeRole ?? "regular",
       photoUrl: emp.photoUrl ?? "",
       emergencyContact: emp.emergencyContact ?? "",
       password: "", // don't pre-fill password on edit
@@ -401,16 +399,10 @@ export default function AdminEmployees() {
                     <option value="part-time">Part-Time</option>
                     <option value="contract">Contract</option>
                     <option value="intern">Intern</option>
+                    <option value="partner-firm">Partner Firm</option>
                   </select>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium mb-1" style={{ color: "oklch(0.45 0.012 65)" }}>Employee Role</label>
-                  <select value={form.employeeRole} onChange={e => setForm(f => ({ ...f, employeeRole: e.target.value as any }))}
-                    className={inputCls} style={inputStyle}>
-                    <option value="regular">Regular Employee</option>
-                    <option value="contractor">Contractor</option>
-                  </select>
-                </div>
+
                 <div>
                   <label className="block text-xs font-medium mb-1" style={{ color: "oklch(0.45 0.012 65)" }}>Work Location</label>
                   <input value={form.workLocation} onChange={e => setForm(f => ({ ...f, workLocation: e.target.value }))}

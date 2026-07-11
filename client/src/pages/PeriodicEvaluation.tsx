@@ -492,7 +492,7 @@ export default function PeriodicEvaluation() {
         )}
 
         {/* Contractor note */}
-        {myEmployee?.employeeRole === "contractor" && (
+        {myEmployee?.employmentType === "contract" && (
           <div className="rounded-xl p-3 border" style={{ borderColor: "oklch(0.88 0.006 80)", background: "oklch(0.96 0.008 300)" }}>
             <p className="text-xs font-semibold" style={{ color: "oklch(0.42 0.15 300)" }}>Contractor Account</p>
             <p className="text-xs mt-0.5" style={{ color: "oklch(0.55 0.012 65)" }}>

@@ -189,7 +189,7 @@ export default function AdminEvalCycles() {
     const newTasks: Array<{ evaluatorId: number; evaluateeId: number; type: TaskType }> = [];
 
     // Self evaluation (participant evaluates themselves)
-    if (participant.employeeRole !== "contractor") {
+    if (participant.employmentType !== "contract") {
       newTasks.push({ evaluatorId: selectedEvaluateeId, evaluateeId: selectedEvaluateeId, type: "self" });
     }
 
@@ -363,7 +363,7 @@ export default function AdminEvalCycles() {
                                 {participant ? `${participant.firstName} ${participant.lastName}` : `Employee #${participantId}`}
                               </p>
                               <p className="text-xs" style={{ color: "oklch(0.65 0.012 65)" }}>
-                                {participant?.position ?? ""} · {participant?.employeeRole === "contractor" ? "Contractor" : "Regular"} · {completedCount}/{typedTasks.length} completed
+                                {participant?.position ?? ""} · {participant?.employmentType === "contract" ? "Contractor" : "Regular"} · {completedCount}/{typedTasks.length} completed
                               </p>
                             </div>
                           </div>
@@ -579,7 +579,7 @@ export default function AdminEvalCycles() {
                             {emp.firstName} {emp.lastName}
                           </p>
                           <p className="text-xs truncate" style={{ color: "oklch(0.65 0.012 65)" }}>
-                            {emp.position} · {emp.employeeRole === "contractor" ? "Contractor" : "Regular"}
+                            {emp.position} · {emp.employmentType === "contract" ? "Contractor" : "Regular"}
                           </p>
                         </div>
                         {alreadyAssigned && (
@@ -594,9 +594,9 @@ export default function AdminEvalCycles() {
 
               {assignStep === "select_evaluators" && selectedEvaluateeId && (() => {
                 const participant = empMap[selectedEvaluateeId];
-                const isContractor = participant?.employeeRole === "contractor";
-                const regularEmployees = employees.filter(e => e.id !== selectedEvaluateeId && e.status === "active" && e.employeeRole !== "contractor");
-                const contractorEmployees = employees.filter(e => e.id !== selectedEvaluateeId && e.status === "active" && e.employeeRole === "contractor");
+                const isContractor = participant?.employmentType === "contract";
+                const regularEmployees = employees.filter(e => e.id !== selectedEvaluateeId && e.status === "active" && e.employmentType !== "contract");
+                const contractorEmployees = employees.filter(e => e.id !== selectedEvaluateeId && e.status === "active" && e.employmentType === "contract");
                 const managers = employees.filter(e => e.isManager && e.id !== selectedEvaluateeId && e.status === "active");
 
                 return (
@@ -789,7 +789,7 @@ export default function AdminEvalCycles() {
                     ← Back
                   </button>
                   <button
-                    disabled={bulkCreateTasksMut.isPending || (empMap[selectedEvaluateeId!]?.employeeRole === "contractor" && selectedPeerIds.length === 0)}
+                    disabled={bulkCreateTasksMut.isPending || (empMap[selectedEvaluateeId!]?.employmentType === "contract" && selectedPeerIds.length === 0)}
                     onClick={handleAssignConfirm}
                     className="flex-1 py-2.5 rounded-lg text-sm font-medium text-white disabled:opacity-40"
                     style={{ background: "oklch(0.42 0.18 145)" }}
