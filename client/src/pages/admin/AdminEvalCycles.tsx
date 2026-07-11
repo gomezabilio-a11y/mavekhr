@@ -663,11 +663,15 @@ export default function AdminEvalCycles() {
                     )}
 
                     {/* Contractor evaluatees */}
-                    {contractorEmployees.length > 0 && (
-                      <div>
-                        <p className="text-xs font-semibold mb-2" style={{ color: "oklch(0.45 0.012 65)" }}>
-                          Contractor Evaluatees — select multiple
+                    <div>
+                      <p className="text-xs font-semibold mb-2" style={{ color: "oklch(0.45 0.012 65)" }}>
+                        Contractor Evaluatees — select multiple
+                      </p>
+                      {contractorEmployees.length === 0 ? (
+                        <p className="text-xs px-3 py-2 rounded-lg border border-dashed" style={{ color: "oklch(0.65 0.012 65)", borderColor: "oklch(0.88 0.006 80)" }}>
+                          No contractor employees found
                         </p>
+                      ) : (
                         <div className="space-y-1.5 max-h-40 overflow-y-auto">
                           {contractorEmployees.map(emp => {
                             const isSelected = selectedContractorIds.includes(emp.id);
@@ -698,8 +702,8 @@ export default function AdminEvalCycles() {
                             );
                           })}
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
 
                     {/* Manager evaluatee */}
                     {!isContractor && (

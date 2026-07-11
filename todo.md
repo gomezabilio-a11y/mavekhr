@@ -91,10 +91,10 @@
 - [x] Show admin badge/indicator in employee list for admin users
 
 ## Evaluation Enhancements
-- [ ] Add Purpose & Definition ON/OFF toggle to category create/edit forms in AdminEvalForms
-- [ ] Add upward_eval form type (employee evaluates manager) to schema and backend
-- [ ] Wire upward eval task assignment in eval cycle - assign employee to evaluate their manager
-- [ ] Add upward evaluation UI in Employee Portal PeriodicEvaluation page
+- [x] Add Purpose & Definition ON/OFF toggle to category create/edit forms in AdminEvalForms
+- [x] Add upward_eval form type (employee evaluates manager) to schema and backend
+- [x] Wire upward eval task assignment in eval cycle - assign employee to evaluate their manager
+- [x] Add upward evaluation UI in Employee Portal PeriodicEvaluation page
 
 ## Evaluation Model Redesign (Evaluator-Grouped)
 - [x] Purpose & Definition ON/OFF toggle added to category create/edit forms in AdminEvalForms
