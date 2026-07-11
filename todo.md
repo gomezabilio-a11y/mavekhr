@@ -84,3 +84,8 @@
 - [x] Devices — removed hardcoded MacBook/iPhone data; shows "Device tracking not available" (session table deferred)
 - [x] Email tab — shows real user email from auth context
 - [x] Periodic Evaluation badge — dynamically fetches pending task count via evaluation.myTasks tRPC
+
+## Admin Access Toggle in Employee Form
+- [x] Add "Admin Portal Access" toggle to employee create/edit form in AdminEmployees
+- [x] Backend: employee.create/update procedures set user role to admin/user when isAdmin flag changes
+- [x] Show admin badge/indicator in employee list for admin users

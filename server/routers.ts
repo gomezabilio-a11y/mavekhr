@@ -7,7 +7,7 @@ import { storageGetSignedUrl } from "./storage";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { getDb } from "./db";
-import { users } from "../drizzle/schema";
+import { users, employees } from "../drizzle/schema";
 import { eq } from "drizzle-orm";
 import {
   getAllOrgUnits, createOrgUnit, updateOrgUnit, deleteOrgUnit,
@@ -141,7 +141,40 @@ export const appRouter = router({
   }),
 
   employee: router({
-    list: protectedProcedure.query(() => getAllEmployees()),
+    list: protectedProcedure.query(async () => {
+      const db = await getDb();
+      if (!db) return [];
+      // Join employees with users to include the user's role (for admin badge)
+      const rows = await db
+        .select({
+          id: employees.id,
+          employeeCode: employees.employeeCode,
+          firstName: employees.firstName,
+          lastName: employees.lastName,
+          email: employees.email,
+          phone: employees.phone,
+          nationality: employees.nationality,
+          position: employees.position,
+          employmentType: employees.employmentType,
+          employeeRole: employees.employeeRole,
+          workLocation: employees.workLocation,
+          startDate: employees.startDate,
+          contractEndDate: employees.contractEndDate,
+          status: employees.status,
+          orgUnitId: employees.orgUnitId,
+          managerId: employees.managerId,
+          isManager: employees.isManager,
+          userId: employees.userId,
+          photoUrl: employees.photoUrl,
+          emergencyContact: employees.emergencyContact,
+          createdAt: employees.createdAt,
+          userRole: users.role,
+        })
+        .from(employees)
+        .leftJoin(users, eq(employees.userId, users.id))
+        .orderBy(employees.employeeCode);
+      return rows;
+    }),
     search: protectedProcedure
       .input(z.object({ query: z.string() }))
       .query(({ input }) => searchEmployees(input.query)),
@@ -189,6 +222,7 @@ export const appRouter = router({
         photoUrl: z.string().optional(),
         emergencyContact: z.string().optional(),
         password: z.string().min(8).optional(), // initial password set by admin
+        isAdmin: z.boolean().default(false), // grant admin portal access
       }))
       .mutation(async ({ input }) => {
         const toMysqlDate = (v: string | null | undefined) => {
@@ -201,7 +235,7 @@ export const appRouter = router({
         if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB not available" });
 
         // Create a user account for this employee
-        const { password, ...empInput } = input;
+        const { password, isAdmin, ...empInput } = input;
         const openId = `emp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
         const passwordHash = password ? await bcrypt.hash(password, 12) : null;
         await db.insert(users).values({
@@ -210,7 +244,7 @@ export const appRouter = router({
           email: empInput.email,
           loginMethod: "password",
           passwordHash: passwordHash ?? undefined,
-          role: "user",
+          role: isAdmin ? "admin" : "user",
           lastSignedIn: new Date(),
         });
         // Get the newly created user id
@@ -247,9 +281,10 @@ export const appRouter = router({
         userId: z.number().nullable().optional(),
         photoUrl: z.string().optional(),
         emergencyContact: z.string().optional(),
+        isAdmin: z.boolean().optional(), // toggle admin portal access
       }))
-      .mutation(({ input }) => {
-        const { id, ...data } = input;
+      .mutation(async ({ ctx, input }) => {
+        const { id, isAdmin, ...data } = input;
         // Normalize date strings to YYYY-MM-DD for MySQL date columns
         const toMysqlDate = (v: string | null | undefined) => {
           if (!v) return v;
@@ -259,7 +294,21 @@ export const appRouter = router({
         };
         if (data.startDate) data.startDate = toMysqlDate(data.startDate) ?? data.startDate;
         if (data.contractEndDate) data.contractEndDate = toMysqlDate(data.contractEndDate);
-        return updateEmployee(id, data as any);
+        // Update employee record
+        await updateEmployee(id, data as any);
+        // If isAdmin flag is provided, update the linked user's role
+        if (isAdmin !== undefined) {
+          const db = await getDb();
+          if (db) {
+            // Get the employee's userId
+            const empRows = await db.select({ userId: employees.userId }).from(employees).where(eq(employees.id, id)).limit(1);
+            const userId = empRows[0]?.userId;
+            if (userId && userId !== ctx.user.id) {
+              await db.update(users).set({ role: isAdmin ? "admin" : "user" }).where(eq(users.id, userId));
+            }
+          }
+        }
+        return { success: true };
       }),
     delete: adminProcedure
       .input(z.object({ id: z.number() }))

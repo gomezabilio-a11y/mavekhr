@@ -24,6 +24,7 @@ type EmployeeForm = {
   orgUnitId: string;
   managerId: string;
   isManager: boolean;
+  isAdmin: boolean;
   photoUrl: string;
   emergencyContact: string;
   password: string;
@@ -42,7 +43,7 @@ const emptyForm: EmployeeForm = {
   phone: "", nationality: "", position: "",
   employmentType: "full-time", employeeRole: "regular", workLocation: "", startDate: "",
   contractEndDate: "", status: "active", orgUnitId: "", managerId: "",
-  isManager: false, photoUrl: "", emergencyContact: "", password: "",
+  isManager: false, isAdmin: false, photoUrl: "", emergencyContact: "", password: "",
 };
 
 function ResetPasswordSection({ employeeId, employees }: { employeeId: number; employees: any[] }) {
@@ -140,6 +141,7 @@ export default function AdminEmployees() {
       orgUnitId: emp.orgUnitId?.toString() ?? "",
       managerId: emp.managerId?.toString() ?? "",
       isManager: emp.isManager,
+      isAdmin: (emp as any).userRole === "admin",
       employeeRole: (emp as any).employeeRole ?? "regular",
       photoUrl: emp.photoUrl ?? "",
       emergencyContact: emp.emergencyContact ?? "",
@@ -158,9 +160,9 @@ export default function AdminEmployees() {
     const contractEndDate = form.contractEndDate && form.contractEndDate.trim() !== ""
       ? toDateInput(form.contractEndDate)
       : undefined;
-    const { password, ...formWithoutPassword } = form;
+    const { password, isAdmin, ...formWithoutFlags } = form;
     const payload = {
-      ...formWithoutPassword,
+      ...formWithoutFlags,
       startDate: toDateInput(form.startDate),
       contractEndDate,
       orgUnitId,
@@ -171,9 +173,9 @@ export default function AdminEmployees() {
       photoUrl: form.photoUrl && form.photoUrl.trim() !== "" ? form.photoUrl : undefined,
     };
     if (editId) {
-      updateMutation.mutate({ id: editId, ...payload });
+      updateMutation.mutate({ id: editId, ...payload, isAdmin });
     } else {
-      createMutation.mutate({ ...payload, password: password || undefined } as any);
+      createMutation.mutate({ ...payload, isAdmin, password: password || undefined } as any);
     }
   }
 
@@ -286,7 +288,12 @@ export default function AdminEmployees() {
                             bgColor="oklch(0.52 0.18 255)"
                           />
                           <div>
-                            <p className="font-medium" style={{ color: "oklch(0.22 0.012 65)" }}>{emp.firstName} {emp.lastName}</p>
+                            <div className="flex items-center gap-1.5">
+                              <p className="font-medium" style={{ color: "oklch(0.22 0.012 65)" }}>{emp.firstName} {emp.lastName}</p>
+                              {(emp as any).userRole === "admin" && (
+                                <span className="text-xs px-1.5 py-0.5 rounded font-semibold" style={{ background: "oklch(0.92 0.08 255)", color: "oklch(0.38 0.18 255)", fontSize: "10px" }}>Admin</span>
+                              )}
+                            </div>
                             <p className="text-xs" style={{ color: "oklch(0.65 0.012 65)" }}>{emp.email}</p>
                           </div>
                         </div>
@@ -481,21 +488,54 @@ export default function AdminEmployees() {
                     This employee is a manager
                   </label>
                 </div>
+                {/* Admin Portal Access toggle */}
+                <div className="col-span-2">
+                  <div
+                    className="flex items-center justify-between p-3 rounded-lg cursor-pointer select-none"
+                    style={{ background: form.isAdmin ? "oklch(0.92 0.08 255)" : "oklch(0.96 0.004 80)", border: `1px solid ${form.isAdmin ? "oklch(0.72 0.12 255)" : "oklch(0.88 0.006 80)"}`, transition: "all 0.15s ease" }}
+                    onClick={() => setForm(f => ({ ...f, isAdmin: !f.isAdmin }))}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0" style={{ background: form.isAdmin ? "oklch(0.42 0.18 255)" : "oklch(0.88 0.006 80)" }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold" style={{ color: form.isAdmin ? "oklch(0.28 0.14 255)" : "oklch(0.35 0.012 65)" }}>Admin Portal Access</p>
+                        <p className="text-xs" style={{ color: form.isAdmin ? "oklch(0.45 0.12 255)" : "oklch(0.65 0.008 65)" }}>Can log in to the Admin Portal and manage HR data</p>
+                      </div>
+                    </div>
+                    <div
+                      className="w-10 h-5 rounded-full relative flex-shrink-0"
+                      style={{ background: form.isAdmin ? "oklch(0.42 0.18 255)" : "oklch(0.78 0.006 80)", transition: "background 0.15s ease" }}
+                    >
+                      <div
+                        className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow"
+                        style={{ left: form.isAdmin ? "calc(100% - 18px)" : "2px", transition: "left 0.15s ease" }}
+                      />
+                    </div>
+                  </div>
+                </div>
                 {/* Password field — only shown when creating a new employee */}
                 {!editId && (
                   <div className="col-span-2">
                     <label className="block text-xs font-medium mb-1" style={{ color: "oklch(0.45 0.012 65)" }}>
                       Initial Password
-                      <span className="ml-1 font-normal" style={{ color: "oklch(0.72 0.006 80)" }}>(min. 8 characters — share with employee)</span>
+                      {form.isAdmin
+                        ? <span className="ml-1 font-semibold" style={{ color: "oklch(0.52 0.18 25)" }}>* Required for Admin access</span>
+                        : <span className="ml-1 font-normal" style={{ color: "oklch(0.72 0.006 80)" }}>(min. 8 characters — share with employee)</span>
+                      }
                     </label>
                     <input
                       type="password"
                       value={form.password}
                       onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-                      placeholder="Set a temporary password"
+                      placeholder={form.isAdmin ? "Required — set a secure password" : "Set a temporary password"}
                       minLength={8}
+                      required={form.isAdmin}
                       className={inputCls}
-                      style={inputStyle}
+                      style={{ ...inputStyle, borderColor: form.isAdmin && !form.password ? "oklch(0.62 0.18 25)" : undefined }}
                     />
                   </div>
                 )}
