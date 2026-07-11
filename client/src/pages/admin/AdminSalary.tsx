@@ -192,6 +192,25 @@ export default function AdminSalary() {
     if (location.includes("action=new")) setShowForm(true);
   }, [location]);
 
+  // Convert a Date object or ISO string to "YYYY-MM-DD" for HTML date inputs
+  function toDateInputValue(val: unknown): string {
+    if (!val) return "";
+    // If it's already a "YYYY-MM-DD" string, use as-is
+    if (typeof val === "string" && /^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+    // If it's a Date object or ISO string, extract the date part
+    try {
+      const d = new Date(val as string | Date);
+      if (isNaN(d.getTime())) return "";
+      // Use UTC date parts to avoid timezone shifting
+      const y = d.getUTCFullYear();
+      const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+      const day = String(d.getUTCDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    } catch {
+      return "";
+    }
+  }
+
   async function handleEdit(rec: typeof salaryRecords[0]) {
     setEditId(rec.id);
     const hasNextDate = rec.nextPaymentDate != null && String(rec.nextPaymentDate).trim() !== "";
@@ -201,11 +220,11 @@ export default function AdminSalary() {
       employeeId: rec.employeeId.toString(),
       currency: rec.currency,
       amount: rec.amount,
-      paymentDate: rec.paymentDate ? String(rec.paymentDate) : "",
+      paymentDate: toDateInputValue(rec.paymentDate),
       periodLabel: rec.periodLabel,
       status: rec.status,
       payslipUrl: rec.payslipUrl ?? "",
-      nextPaymentDate: hasNextDate ? String(rec.nextPaymentDate) : "",
+      nextPaymentDate: hasNextDate ? toDateInputValue(rec.nextPaymentDate) : "",
       nextPaymentIsNA: !hasNextDate,
       components: (comps as any[]).map(c => ({ type: c.type as "earning" | "deduction", label: c.label, amount: c.amount })),
     });
@@ -226,13 +245,10 @@ export default function AdminSalary() {
 
   function formatNextPayment(rec: typeof salaryRecords[0]) {
     if (!rec.nextPaymentDate) return "N/A";
-    const s = String(rec.nextPaymentDate);
-    if (!s || s.trim() === "") return "N/A";
-    try {
-      return new Date(s).toLocaleDateString("en-SG", { day: "numeric", month: "short", year: "numeric" });
-    } catch {
-      return s.split("T")[0];
-    }
+    const iso = toDateInputValue(rec.nextPaymentDate);
+    if (!iso) return "N/A";
+    const [y, m, day] = iso.split("-");
+    return new Date(parseInt(y), parseInt(m) - 1, parseInt(day)).toLocaleDateString("en-SG", { day: "numeric", month: "short", year: "numeric" });
   }
 
   const selectedEmp = employees.find(e => e.id === selectedEmployee);
@@ -313,7 +329,7 @@ export default function AdminSalary() {
                             {rec.periodLabel}
                           </button>
                         </td>
-                        <td className="px-4 py-3" style={{ color: "oklch(0.45 0.012 65)" }}>{rec.paymentDate ? (() => { const d = String(rec.paymentDate).split("T")[0]; const [y,m,day] = d.split("-"); return new Date(parseInt(y), parseInt(m)-1, parseInt(day)).toLocaleDateString("en-SG", { day: "numeric", month: "short", year: "numeric" }); })() : "—"}</td>
+                        <td className="px-4 py-3" style={{ color: "oklch(0.45 0.012 65)" }}>{rec.paymentDate ? (() => { const iso = toDateInputValue(rec.paymentDate); if (!iso) return "—"; const [y,m,day] = iso.split("-"); return new Date(parseInt(y), parseInt(m)-1, parseInt(day)).toLocaleDateString("en-SG", { day: "numeric", month: "short", year: "numeric" }); })() : "—"}</td>
                         <td className="px-4 py-3">
                           <span className="flex items-center gap-1.5">
                             <CalendarClock size={13} style={{ color: formatNextPayment(rec) === "N/A" ? "oklch(0.65 0.012 65)" : "oklch(0.42 0.18 255)" }} />
