@@ -163,23 +163,47 @@ function CategorySection({ cat, scores, onScore, onComment, disabled }: {
 }
 
 // ─── Evaluation Form ──────────────────────────────────────────────────────────
-function EvaluationForm({ task, formType, evaluateeLabel }: {
+function EvaluationForm({ task, formType, evaluateeLabel, cycleCloseDate }: {
   task: { id: number; evaluatorId: number; evaluateeId: number; type: string; status: string };
   formType: FormType;
   evaluateeLabel: string;
+  cycleCloseDate?: string | null;
 }) {
   const [scores, setScores] = useState<KpiScore[]>([]);
   const [overallComment, setOverallComment] = useState("");
-  const [submitted, setSubmitted] = useState(task.status === "completed");
+  const [prefilled, setPrefilled] = useState(false);
+
+  // Cycle still open = closeDate is in the future (or not set)
+  const cycleIsOpen = !cycleCloseDate || new Date(cycleCloseDate) >= new Date(new Date().toDateString());
+  const wasSubmitted = task.status === "completed";
+  // Locked = submitted AND cycle is closed
+  const isLocked = wasSubmitted && !cycleIsOpen;
 
   const utils = trpc.useUtils();
-  const { data: form, isLoading } = trpc.evalForm.getByType.useQuery({ formType });
+  const { data: form, isLoading: formLoading } = trpc.evalForm.getByType.useQuery({ formType });
+  // Load existing answers for prefilling (if already submitted)
+  const { data: existingResponse, isLoading: responseLoading } = trpc.evalResponse.getWithKpi.useQuery(
+    { taskId: task.id },
+    { enabled: wasSubmitted }
+  );
+
+  // Prefill scores from existing response
+  useMemo(() => {
+    if (existingResponse && !prefilled) {
+      setScores((existingResponse.kpiAnswers as any[]).map((a: any) => ({
+        kpiId: a.kpiId,
+        score: a.score,
+        comment: a.comment ?? undefined,
+      })));
+      setOverallComment(existingResponse.overallComment ?? "");
+      setPrefilled(true);
+    }
+  }, [existingResponse, prefilled]);
 
   const submitMutation = trpc.evalResponse.submit.useMutation({
     onSuccess: () => {
-      setSubmitted(true);
       utils.evaluation.myTasks.invalidate();
-      toast.success("Evaluation submitted successfully!");
+      toast.success(wasSubmitted ? "Evaluation updated successfully!" : "Evaluation submitted successfully!");
     },
     onError: (e) => toast.error(e.message),
   });
@@ -202,7 +226,7 @@ function EvaluationForm({ task, formType, evaluateeLabel }: {
 
   const allKpis = useMemo(() => {
     if (!form) return [];
-    return form.categories.flatMap((c: any) => c.kpis);
+    return (form as any).categories.flatMap((c: any) => c.kpis);
   }, [form]);
 
   const answeredCount = scores.filter(s => s.score > 0).length;
@@ -214,7 +238,7 @@ function EvaluationForm({ task, formType, evaluateeLabel }: {
     if (!form || !isComplete) return;
     submitMutation.mutate({
       taskId: task.id,
-      formId: form.id,
+      formId: (form as any).id,
       evaluatorId: task.evaluatorId,
       evaluateeId: task.evaluateeId,
       overallComment: overallComment || undefined,
@@ -222,7 +246,7 @@ function EvaluationForm({ task, formType, evaluateeLabel }: {
     });
   }
 
-  if (isLoading) {
+  if (formLoading || (wasSubmitted && responseLoading)) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="w-6 h-6 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: "oklch(0.62 0.18 255)" }} />
@@ -241,22 +265,35 @@ function EvaluationForm({ task, formType, evaluateeLabel }: {
     );
   }
 
-  if (submitted) {
+  // Locked: submitted and cycle is closed — read-only view
+  if (isLocked) {
     return (
-      <div className="text-center py-16">
-        <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: "oklch(0.92 0.08 145)" }}>
-          <Lock size={26} style={{ color: "oklch(0.42 0.18 145)" }} />
+      <div className="space-y-4">
+        <div className="flex items-center gap-3 p-3 rounded-xl border" style={{ borderColor: "oklch(0.88 0.006 80)", background: "oklch(0.96 0.008 145)" }}>
+          <Lock size={14} style={{ color: "oklch(0.42 0.18 145)" }} />
+          <p className="text-xs" style={{ color: "oklch(0.42 0.18 145)" }}>
+            This evaluation is locked — the evaluation period has ended.
+          </p>
         </div>
-        <p className="text-lg font-bold" style={{ color: "oklch(0.22 0.012 65)", fontFamily: "'DM Sans', sans-serif" }}>Evaluation Submitted</p>
-        <p className="text-sm mt-1" style={{ color: "oklch(0.55 0.012 65)" }}>
-          Your evaluation for <strong>{evaluateeLabel}</strong> has been submitted and is locked.
-        </p>
+        {(form as any).categories.map((cat: any) => (
+          <CategorySection key={cat.id} cat={cat} scores={scores} onScore={() => {}} onComment={() => {}} disabled={true} />
+        ))}
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
+      {/* Status banner for re-editing */}
+      {wasSubmitted && cycleIsOpen && (
+        <div className="flex items-center gap-3 p-3 rounded-xl border" style={{ borderColor: "oklch(0.88 0.006 255)", background: "oklch(0.96 0.008 255)" }}>
+          <CheckCircle2 size={14} style={{ color: "oklch(0.42 0.18 255)" }} />
+          <p className="text-xs" style={{ color: "oklch(0.42 0.18 255)" }}>
+            Previously submitted — you can update your answers until the evaluation period ends{cycleCloseDate ? ` (${new Date(cycleCloseDate).toLocaleDateString()})` : ""}.
+          </p>
+        </div>
+      )}
+
       {/* Progress bar */}
       <div className="rounded-xl p-4 border" style={{ borderColor: "oklch(0.88 0.006 80)", background: "white" }}>
         <div className="flex items-center justify-between mb-2">
@@ -282,7 +319,7 @@ function EvaluationForm({ task, formType, evaluateeLabel }: {
           scores={scores}
           onScore={handleScore}
           onComment={handleComment}
-          disabled={submitted}
+          disabled={false}
         />
       ))}
 
@@ -305,7 +342,9 @@ function EvaluationForm({ task, formType, evaluateeLabel }: {
       <div className="flex items-center gap-3 p-4 rounded-xl border" style={{ borderColor: "oklch(0.88 0.006 80)", background: "oklch(0.98 0.004 80)" }}>
         <AlertCircle size={14} style={{ color: "oklch(0.52 0.12 65)" }} />
         <p className="text-xs flex-1" style={{ color: "oklch(0.55 0.012 65)" }}>
-          Once submitted, your evaluation cannot be modified. Please review your answers before submitting.
+          {wasSubmitted
+            ? "You can update your answers until the evaluation period ends."
+            : "Please review your answers before submitting."}
         </p>
         <button
           onClick={handleSubmit}
@@ -314,7 +353,7 @@ function EvaluationForm({ task, formType, evaluateeLabel }: {
           style={{ background: isComplete ? "oklch(0.42 0.18 255)" : "oklch(0.72 0.006 80)" }}
         >
           <Send size={14} />
-          {submitMutation.isPending ? "Submitting..." : "Submit Evaluation"}
+          {submitMutation.isPending ? "Saving..." : wasSubmitted ? "Update Evaluation" : "Submit Evaluation"}
         </button>
       </div>
     </div>
@@ -522,18 +561,25 @@ export default function PeriodicEvaluation() {
                   {getEvaluateeLabel(selectedTask)}
                 </h2>
               </div>
-              {selectedTask.status === "completed" && (
-                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full" style={{ background: "oklch(0.92 0.08 145)" }}>
-                  <Lock size={12} style={{ color: "oklch(0.42 0.18 145)" }} />
-                  <span className="text-xs font-medium" style={{ color: "oklch(0.32 0.18 145)" }}>Submitted</span>
-                </div>
-              )}
+              {selectedTask.status === "completed" && (() => {
+                const closeDate = (selectedTask as any).cycleCloseDate;
+                const cycleOpen = !closeDate || new Date(closeDate) >= new Date(new Date().toDateString());
+                return (
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full" style={{ background: cycleOpen ? "oklch(0.92 0.08 255)" : "oklch(0.92 0.08 145)" }}>
+                    {cycleOpen ? <CheckCircle2 size={12} style={{ color: "oklch(0.42 0.18 255)" }} /> : <Lock size={12} style={{ color: "oklch(0.42 0.18 145)" }} />}
+                    <span className="text-xs font-medium" style={{ color: cycleOpen ? "oklch(0.32 0.18 255)" : "oklch(0.32 0.18 145)" }}>
+                      {cycleOpen ? "Submitted (editable)" : "Submitted"}
+                    </span>
+                  </div>
+                );
+              })()}
             </div>
 
             <EvaluationForm
               task={selectedTask}
               formType={getFormType(selectedTask)}
               evaluateeLabel={getEvaluateeLabel(selectedTask)}
+              cycleCloseDate={(selectedTask as any).cycleCloseDate}
             />
           </div>
         )}

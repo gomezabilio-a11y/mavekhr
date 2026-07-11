@@ -1,4 +1,4 @@
-import { eq, desc, sql, and, asc, ne } from "drizzle-orm";
+import { eq, desc, sql, and, asc, ne, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   users, InsertUser,
@@ -504,24 +504,37 @@ export async function getResponseByTaskId(taskId: number) {
   return result[0];
 }
 
-export async function createEvaluationResponse(
+export async function upsertEvaluationResponse(
   responseData: typeof evaluationResponses.$inferInsert,
   kpiData: Array<typeof kpiResponses.$inferInsert>
 ) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
 
-  // Prevent duplicate submissions: check if a response already exists for this task
+  let responseId: number;
+
   if (responseData.taskId) {
     const existing = await db.select().from(evaluationResponses)
       .where(eq(evaluationResponses.taskId, responseData.taskId)).limit(1);
+
     if (existing.length > 0) {
-      throw new Error("Evaluation for this task has already been submitted.");
+      // Update existing response
+      responseId = existing[0].id;
+      await db.update(evaluationResponses)
+        .set({ overallComment: responseData.overallComment, submittedAt: new Date() })
+        .where(eq(evaluationResponses.id, responseId));
+      // Delete old KPI responses and re-insert
+      await db.delete(kpiResponses).where(eq(kpiResponses.responseId, responseId));
+    } else {
+      // Insert new response
+      const insertResult = await db.insert(evaluationResponses).values(responseData);
+      responseId = (insertResult as any)[0]?.insertId ?? (insertResult as any).insertId;
     }
+  } else {
+    const insertResult = await db.insert(evaluationResponses).values(responseData);
+    responseId = (insertResult as any)[0]?.insertId ?? (insertResult as any).insertId;
   }
 
-  const insertResult = await db.insert(evaluationResponses).values(responseData);
-  const responseId = (insertResult as any)[0]?.insertId ?? (insertResult as any).insertId;
   if (kpiData.length > 0) {
     await db.insert(kpiResponses).values(kpiData.map(k => ({ ...k, responseId })));
   }
@@ -801,4 +814,107 @@ export async function getOrgPath(orgUnitId: number): Promise<typeof orgUnits.$in
     current = current.parentId ? map.get(current.parentId) : undefined;
   }
   return path;
+}
+
+// ─── Computed Evaluation Results ──────────────────────────────────────────────
+// Returns per-cycle evaluation results for an employee, computing scores from
+// submitted evaluation_responses and kpi_responses.
+// Weights: self 20%, peer 30%, manager 50% (final score)
+// Peer+manager combined: peer 40%, manager 60%
+export async function getComputedEvaluationResults(employeeId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  // Get all cycles that have tasks where this employee is the evaluatee
+  const tasks = await db.select().from(evaluationTasks)
+    .where(eq(evaluationTasks.evaluateeId, employeeId));
+
+  if (tasks.length === 0) return [];
+
+  const cycleIds = Array.from(new Set(tasks.map(t => t.cycleId)));
+  const cycles = await db.select().from(evaluationCycles)
+    .where(inArray(evaluationCycles.id, cycleIds));
+
+  const results = [];
+
+  for (const cycle of cycles) {
+    const cycleTasks = tasks.filter(t => t.cycleId === cycle.id);
+
+    // Group tasks by type
+    const selfTasks = cycleTasks.filter(t => t.type === "self" && t.status === "completed");
+    const peerTasks = cycleTasks.filter(t => t.type === "peer" && t.status === "completed");
+    const managerTasks = cycleTasks.filter(t => t.type === "manager" && t.status === "completed");
+    const contractorTasks = cycleTasks.filter(t => t.type === "contractor" && t.status === "completed");
+
+    // Helper: compute average KPI scores per category for a list of tasks
+    const computeScoresForTasks = async (taskList: typeof cycleTasks) => {
+      if (taskList.length === 0) return { categoryScores: {}, totalAvg: null };
+      const categoryScores: Record<string, { name: string; scores: number[] }> = {};
+      let allScores: number[] = [];
+
+      for (const task of taskList) {
+        const response = await db!.select().from(evaluationResponses)
+          .where(eq(evaluationResponses.taskId, task.id)).limit(1);
+        if (response.length === 0) continue;
+        const kpis = await db!.select().from(kpiResponses)
+          .where(eq(kpiResponses.responseId, response[0].id));
+
+        // Get category info for each KPI via formKpis → formCategories
+        for (const kpi of kpis) {
+          const kpiRow = await db!.select().from(formKpis)
+            .where(eq(formKpis.id, kpi.kpiId)).limit(1);
+          if (kpiRow.length === 0) continue;
+          const catRow = await db!.select().from(formCategories)
+            .where(eq(formCategories.id, kpiRow[0].categoryId)).limit(1);
+          const catName = catRow[0]?.title ?? "Unknown";
+          if (!categoryScores[catName]) categoryScores[catName] = { name: catName, scores: [] };
+          categoryScores[catName].scores.push(kpi.score);
+          allScores.push(kpi.score);
+        }
+      }
+
+      const categoryAvgs = Object.entries(categoryScores).map(([name, { scores }]) => ({
+        name,
+        avg: scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0,
+        count: scores.length,
+      }));
+      const totalAvg = allScores.length > 0 ? allScores.reduce((a, b) => a + b, 0) / allScores.length : null;
+      return { categoryScores: categoryAvgs, totalAvg };
+    };
+
+    const selfResult = await computeScoresForTasks(selfTasks);
+    const peerResult = await computeScoresForTasks(peerTasks);
+    const managerResult = await computeScoresForTasks(managerTasks);
+    const contractorResult = await computeScoresForTasks(contractorTasks);
+
+    // Weighted final score: self 20%, peer 30%, manager 50%
+    let finalScore: number | null = null;
+    const hasSelf = selfResult.totalAvg !== null;
+    const hasPeer = peerResult.totalAvg !== null;
+    const hasManager = managerResult.totalAvg !== null;
+
+    if (hasSelf || hasPeer || hasManager) {
+      let weightedSum = 0;
+      let totalWeight = 0;
+      if (hasSelf) { weightedSum += selfResult.totalAvg! * 0.2; totalWeight += 0.2; }
+      if (hasPeer) { weightedSum += peerResult.totalAvg! * 0.3; totalWeight += 0.3; }
+      if (hasManager) { weightedSum += managerResult.totalAvg! * 0.5; totalWeight += 0.5; }
+      finalScore = totalWeight > 0 ? weightedSum / totalWeight : null;
+    }
+
+    results.push({
+      cycleId: cycle.id,
+      period: cycle.period,
+      status: cycle.status,
+      closeDate: cycle.closeDate,
+      self: selfResult,
+      peer: peerResult,
+      manager: managerResult,
+      contractor: contractorResult,
+      finalScore,
+      weights: { self: 0.2, peer: 0.3, manager: 0.5 },
+    });
+  }
+
+  return results.sort((a, b) => b.cycleId - a.cycleId);
 }

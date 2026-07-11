@@ -7,8 +7,8 @@ import { storageGetSignedUrl } from "./storage";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { getDb } from "./db";
-import { users, employees } from "../drizzle/schema";
-import { eq } from "drizzle-orm";
+import { users, employees, evaluationCycles } from "../drizzle/schema";
+import { eq, inArray } from "drizzle-orm";
 import {
   getAllOrgUnits, createOrgUnit, updateOrgUnit, deleteOrgUnit,
   getAllEmployees, getEmployeeById, getEmployeeByUserId, searchEmployees,
@@ -24,7 +24,7 @@ import {
   getAllEvaluationForms, getEvaluationFormById, getEvaluationFormByType, updateEvaluationForm, upsertEvaluationForm,
   getCategoriesByFormId, createFormCategory, updateFormCategory, deleteFormCategory,
   getKpisByCategoryId, createFormKpi, updateFormKpi, deleteFormKpi,
-  getResponseByTaskId, createEvaluationResponse, getKpiResponsesByResponseId,
+  getResponseByTaskId, upsertEvaluationResponse, getKpiResponsesByResponseId, getComputedEvaluationResults,
   getAllLeaveTypes, createLeaveType, updateLeaveType, deleteLeaveType,
   getLeaveBalances, upsertLeaveBalance,
   getLeaveRequests, getPendingLeaveRequestsForManager, getAllLeaveRequestsAdmin,
@@ -418,6 +418,9 @@ export const appRouter = router({
         selfComment: z.string().optional(),
       }))
       .mutation(({ input }) => createPerformanceResult(input as any)),
+    computedResults: protectedProcedure
+      .input(z.object({ employeeId: z.number() }))
+      .query(({ input }) => getComputedEvaluationResults(input.employeeId)),
   }),
 
   evaluation: router({
@@ -450,7 +453,19 @@ export const appRouter = router({
     // ── Tasks ───────────────────────────────────────────────────────────────
     myTasks: protectedProcedure
       .input(z.object({ employeeId: z.number() }))
-      .query(({ input }) => getEvaluationTasksForEmployee(input.employeeId)),
+      .query(async ({ input }) => {
+        const tasks = await getEvaluationTasksForEmployee(input.employeeId);
+        if (tasks.length === 0) return [];
+        // Attach cycle closeDate to each task so frontend can gate re-editing
+        const db = await getDb();
+        if (!db) return tasks;
+        const cycleIds = Array.from(new Set(tasks.map(t => t.cycleId)));
+        const cycles = await db.select().from(evaluationCycles)
+          .where(inArray(evaluationCycles.id, cycleIds));
+        const cycleMap: Record<number, typeof cycles[0]> = {};
+        cycles.forEach(c => { cycleMap[c.id] = c; });
+        return tasks.map(t => ({ ...t, cycleCloseDate: cycleMap[t.cycleId]?.closeDate ?? null }));
+      }),
     tasksByCycle: adminProcedure
       .input(z.object({ cycleId: z.number() }))
       .query(({ input }) => getEvaluationTasksByCycle(input.cycleId)),
@@ -744,7 +759,7 @@ export const appRouter = router({
       }))
       .mutation(async ({ input }) => {
         const { kpiScores, ...responseData } = input;
-        return createEvaluationResponse(
+        return upsertEvaluationResponse(
           { ...responseData, submittedAt: new Date(), createdAt: new Date() },
           kpiScores.map(k => ({ ...k, responseId: 0 }))
         );
@@ -752,6 +767,14 @@ export const appRouter = router({
     kpiAnswers: protectedProcedure
       .input(z.object({ responseId: z.number() }))
       .query(({ input }) => getKpiResponsesByResponseId(input.responseId)),
+    getWithKpi: protectedProcedure
+      .input(z.object({ taskId: z.number() }))
+      .query(async ({ input }) => {
+        const response = await getResponseByTaskId(input.taskId);
+        if (!response) return null;
+        const kpiAnswers = await getKpiResponsesByResponseId(response.id);
+        return { ...response, kpiAnswers };
+      }),
   }),
 
   // ─── Bank Information ──────────────────────────────────────────────────────

@@ -111,3 +111,12 @@
 - [x] Add Edit Participant button per participant row (pre-populates assign panel with existing tasks)
 - [x] Fix PeriodicEvaluation.tsx FormType union (remove manager_eval, add upward_eval)
 - [x] handleEditParticipant: pre-populates selectedPeerIds, selectedContractorIds, selectedManagerId, includeUpward
+
+## Evaluation Submit & Results Fix
+- [x] Fix submit bug: upsert instead of create-only (one submit no longer locks all tasks)
+- [x] Allow re-editing submitted evaluations while cycle is still open (cycleCloseDate check)
+- [x] Prefill existing answers when re-editing a submitted evaluation
+- [x] Show "Submitted (editable)" badge vs "Submitted" based on cycle status
+- [x] Build Performance Results page: self (20%), peer (30%), manager (50%) weighted final score
+- [x] Per-category breakdown for self/peer/manager/contractor evaluations
+- [x] Add computedResults tRPC procedure that aggregates scores from evaluation_responses

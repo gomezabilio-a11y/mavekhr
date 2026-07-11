@@ -1,32 +1,110 @@
 /**
  * PerformanceResults.tsx — Performance Evaluation Results
- * Design: Warm Slate
- * Data: real DB via trpc.performance.list
+ * Shows self (20%), peer (30%), manager (50%) scores per category and weighted final score.
  */
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useState } from "react";
-import { Star, Award, Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Star, Award, Loader2, User, Users, Briefcase, ClipboardList, ChevronDown, ChevronUp } from "lucide-react";
 
-const gradeColor: Record<string, { bg: string; text: string; border: string }> = {
-  Outstanding: { bg: "oklch(0.92 0.08 80)", text: "oklch(0.45 0.14 65)", border: "oklch(0.82 0.12 65)" },
-  Excellent: { bg: "oklch(0.92 0.08 145)", text: "oklch(0.35 0.16 145)", border: "oklch(0.78 0.14 145)" },
-  Good: { bg: "oklch(0.92 0.08 255)", text: "oklch(0.42 0.18 255)", border: "oklch(0.82 0.12 255)" },
-  "Needs Improvement": { bg: "oklch(0.95 0.06 27)", text: "oklch(0.45 0.2 27)", border: "oklch(0.85 0.1 27)" },
-};
+// Score → color
+function scoreColor(score: number | null) {
+  if (score === null) return "oklch(0.72 0.006 80)";
+  if (score >= 4.5) return "oklch(0.42 0.18 145)";
+  if (score >= 3.5) return "oklch(0.42 0.18 255)";
+  if (score >= 2.5) return "oklch(0.52 0.15 65)";
+  return "oklch(0.52 0.18 27)";
+}
+
+function scoreLabel(score: number | null) {
+  if (score === null) return "N/A";
+  if (score >= 4.5) return "Outstanding";
+  if (score >= 3.5) return "Excellent";
+  if (score >= 2.5) return "Good";
+  if (score >= 1.5) return "Needs Improvement";
+  return "Unsatisfactory";
+}
+
+function ScoreBar({ score, max = 5 }: { score: number | null; max?: number }) {
+  const pct = score !== null ? Math.round((score / max) * 100) : 0;
+  return (
+    <div className="h-2 rounded-full overflow-hidden" style={{ background: "oklch(0.93 0.006 80)" }}>
+      <div
+        className="h-full rounded-full transition-all duration-700"
+        style={{ width: `${pct}%`, background: scoreColor(score) }}
+      />
+    </div>
+  );
+}
+
+function ScoreBadge({ score }: { score: number | null }) {
+  return (
+    <span
+      className="text-xs font-bold px-2 py-0.5 rounded-full"
+      style={{
+        background: score !== null ? `${scoreColor(score)}22` : "oklch(0.93 0.006 80)",
+        color: scoreColor(score),
+      }}
+    >
+      {score !== null ? score.toFixed(2) : "N/A"}
+    </span>
+  );
+}
+
+function CategoryTable({ categories, label, icon, color }: {
+  categories: Array<{ name: string; avg: number; count: number }>;
+  label: string;
+  icon: React.ReactNode;
+  color: string;
+}) {
+  const [expanded, setExpanded] = useState(true);
+  if (!categories || categories.length === 0) return null;
+
+  const total = categories.reduce((sum, c) => sum + c.avg, 0) / categories.length;
+
+  return (
+    <div className="rounded-xl border overflow-hidden" style={{ borderColor: "oklch(0.88 0.006 80)" }}>
+      <button
+        onClick={() => setExpanded(v => !v)}
+        className="w-full flex items-center gap-3 px-4 py-3 text-left"
+        style={{ background: `${color}11` }}
+      >
+        <span className="flex items-center gap-1.5 text-sm font-semibold" style={{ color }}>
+          {icon}
+          {label}
+        </span>
+        <ScoreBadge score={total} />
+        <span className="ml-auto text-xs" style={{ color: "oklch(0.65 0.012 65)" }}>
+          {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+        </span>
+      </button>
+      {expanded && (
+        <div className="divide-y" style={{ borderColor: "oklch(0.93 0.006 80)" }}>
+          {categories.map((cat, i) => (
+            <div key={i} className="px-4 py-3">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-sm" style={{ color: "oklch(0.32 0.012 65)" }}>{cat.name}</span>
+                <ScoreBadge score={cat.avg} />
+              </div>
+              <ScoreBar score={cat.avg} />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function PerformanceResults() {
   const { user } = useAuth();
   const { data: emp } = trpc.employee.me.useQuery(undefined, { enabled: !!user });
-  const { data: results = [], isLoading } = trpc.performance.list.useQuery(
+  const { data: results = [], isLoading } = trpc.performance.computedResults.useQuery(
     { employeeId: emp?.id ?? 0 },
     { enabled: !!emp?.id }
   );
 
   const [selectedIdx, setSelectedIdx] = useState(0);
-  const selected = results[selectedIdx] as any;
-  const grade = selected ? (gradeColor[selected.grade] || gradeColor.Good) : gradeColor.Good;
+  const selected = (results as any[])[selectedIdx];
 
   if (isLoading) {
     return (
@@ -36,7 +114,7 @@ export default function PerformanceResults() {
     );
   }
 
-  if (results.length === 0) {
+  if ((results as any[]).length === 0) {
     return (
       <div className="p-6 space-y-6">
         <div>
@@ -47,149 +125,162 @@ export default function PerformanceResults() {
             Your evaluation results and performance breakdown
           </p>
         </div>
-        <div className="hr-card p-12 text-center">
-          <Award size={40} className="mx-auto mb-3" style={{ color: "oklch(0.72 0.006 80)" }} />
-          <p className="text-sm font-medium" style={{ color: "oklch(0.45 0.012 65)" }}>No performance results yet</p>
-          <p className="text-xs mt-1" style={{ color: "oklch(0.65 0.01 65)" }}>Results will appear here after evaluations are completed</p>
+        <div className="rounded-xl border p-12 text-center" style={{ borderColor: "oklch(0.88 0.006 80)" }}>
+          <Award size={36} className="mx-auto mb-3" style={{ color: "oklch(0.82 0.006 80)" }} />
+          <p className="font-semibold" style={{ color: "oklch(0.45 0.012 65)" }}>No evaluation results yet</p>
+          <p className="text-sm mt-1" style={{ color: "oklch(0.65 0.012 65)" }}>
+            Results will appear here once evaluations have been submitted and processed.
+          </p>
         </div>
       </div>
     );
   }
 
-  const overallScore = selected?.overallScore ?? 0;
-  const scoreAngle = overallScore * 3.6;
+  const selfScore = selected?.self?.totalAvg ?? null;
+  const peerScore = selected?.peer?.totalAvg ?? null;
+  const managerScore = selected?.manager?.totalAvg ?? null;
+  const contractorScore = selected?.contractor?.totalAvg ?? null;
+  const finalScore = selected?.finalScore ?? null;
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-start justify-between flex-wrap gap-3">
-        <div>
-          <h2 className="text-xl font-bold mb-1" style={{ color: "oklch(0.22 0.012 65)", fontFamily: "'DM Sans', sans-serif" }}>
-            Performance Results
-          </h2>
-          <p className="text-sm" style={{ color: "oklch(0.55 0.012 65)" }}>
-            Your evaluation results and performance breakdown
-          </p>
-        </div>
-        {/* Period Selector */}
-        {results.length > 1 && (
-          <div className="flex items-center gap-1 p-1 rounded-lg" style={{ background: "oklch(0.94 0.004 80)" }}>
-            {results.map((r: any, i: number) => (
-              <button
-                key={r.id}
-                onClick={() => setSelectedIdx(i)}
-                className={cn(
-                  "px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150",
-                  selectedIdx === i ? "bg-white shadow-sm" : "hover:bg-white/50"
-                )}
-                style={{ color: selectedIdx === i ? "oklch(0.22 0.012 65)" : "oklch(0.55 0.012 65)" }}
-              >
-                {r.periodLabel ?? `Period ${i + 1}`}
-              </button>
-            ))}
-          </div>
-        )}
+    <div className="p-6 space-y-6 max-w-3xl">
+      {/* Header */}
+      <div>
+        <h2 className="text-xl font-bold mb-1" style={{ color: "oklch(0.22 0.012 65)", fontFamily: "'DM Sans', sans-serif" }}>
+          Performance Results
+        </h2>
+        <p className="text-sm" style={{ color: "oklch(0.55 0.012 65)" }}>
+          Evaluation breakdown by self, peer, and manager assessments
+        </p>
       </div>
 
-      {/* Score Card */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="hr-card p-6 flex flex-col items-center justify-center text-center">
-          <div
-            className="w-24 h-24 rounded-full flex flex-col items-center justify-center mb-4"
-            style={{
-              background: `conic-gradient(oklch(0.72 0.15 65) ${scoreAngle}deg, oklch(0.92 0.004 80) 0deg)`,
-            }}
-          >
-            <div className="w-20 h-20 rounded-full flex flex-col items-center justify-center bg-white">
-              <span className="text-2xl font-bold" style={{ color: "oklch(0.22 0.012 65)", fontFamily: "'DM Sans', sans-serif", lineHeight: 1 }}>
-                {overallScore}
-              </span>
-              <span className="text-xs" style={{ color: "oklch(0.55 0.012 65)" }}>/100</span>
-            </div>
-          </div>
-          <p className="text-xs font-medium mb-2" style={{ color: "oklch(0.55 0.012 65)" }}>Overall Score</p>
-          {selected?.grade && (
-            <span
-              className="px-3 py-1 rounded-full text-sm font-semibold"
-              style={{ background: grade.bg, color: grade.text, border: `1px solid ${grade.border}` }}
+      {/* Cycle selector */}
+      {(results as any[]).length > 1 && (
+        <div className="flex gap-2 flex-wrap">
+          {(results as any[]).map((r: any, i: number) => (
+            <button
+              key={r.cycleId}
+              onClick={() => setSelectedIdx(i)}
+              className="px-3 py-1.5 rounded-lg text-sm font-medium transition-all"
+              style={{
+                background: i === selectedIdx ? "oklch(0.42 0.18 255)" : "oklch(0.95 0.006 80)",
+                color: i === selectedIdx ? "white" : "oklch(0.45 0.012 65)",
+              }}
             >
-              {selected.grade}
-            </span>
-          )}
-          {selected?.periodLabel && (
-            <p className="text-xs mt-3" style={{ color: "oklch(0.65 0.01 65)" }}>
-              {selected.periodLabel}
-            </p>
-          )}
+              {r.period}
+            </button>
+          ))}
         </div>
+      )}
 
-        {/* KPI Breakdown */}
-        <div className="hr-card overflow-hidden lg:col-span-2">
-          <div className="p-5 border-b" style={{ borderColor: "oklch(0.88 0.006 80)" }}>
-            <h3 className="text-sm font-semibold" style={{ color: "oklch(0.22 0.012 65)", fontFamily: "'DM Sans', sans-serif" }}>
-              KPI Breakdown
-            </h3>
-          </div>
-          {selected?.kpiScores && selected.kpiScores.length > 0 ? (
-            <table className="w-full">
-              <thead>
-                <tr style={{ background: "oklch(0.975 0.006 80)" }}>
-                  {["KPI", "Weight", "Score"].map((h) => (
-                    <th key={h} className="text-left px-5 py-3 text-xs font-semibold uppercase tracking-wide" style={{ color: "oklch(0.55 0.012 65)" }}>
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {selected.kpiScores.map((row: any, i: number) => (
-                  <tr key={i} className="border-t hover:bg-gray-50 transition-colors" style={{ borderColor: "oklch(0.92 0.004 80)" }}>
-                    <td className="px-5 py-3 text-sm" style={{ color: "oklch(0.22 0.012 65)" }}>{row.kpiName}</td>
-                    <td className="px-5 py-3">
-                      <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={{ background: "oklch(0.92 0.004 80)", color: "oklch(0.45 0.012 65)" }}>
-                        {row.weight ?? "—"}%
-                      </span>
-                    </td>
-                    <td className="px-5 py-3">
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 max-w-20 h-1.5 rounded-full overflow-hidden" style={{ background: "oklch(0.92 0.004 80)" }}>
-                          <div
-                            className="h-full rounded-full"
-                            style={{
-                              width: `${row.score ?? 0}%`,
-                              background: (row.score ?? 0) >= 90 ? "oklch(0.52 0.18 145)" : (row.score ?? 0) >= 80 ? "oklch(0.42 0.18 255)" : "oklch(0.72 0.15 65)",
-                            }}
-                          />
-                        </div>
-                        <span className="text-sm font-semibold" style={{ color: "oklch(0.22 0.012 65)", fontFamily: "'JetBrains Mono', monospace", fontSize: "13px" }}>
-                          {row.score ?? "—"}
-                        </span>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <div className="text-center py-10">
-              <p className="text-sm" style={{ color: "oklch(0.65 0.01 65)" }}>No KPI breakdown available</p>
+      {selected && (
+        <>
+          {/* Final Score Summary Card */}
+          <div className="rounded-xl border p-5" style={{ borderColor: "oklch(0.88 0.006 80)", background: "white" }}>
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <p className="text-xs font-medium mb-1" style={{ color: "oklch(0.55 0.012 65)" }}>
+                  {selected.period} — Final Weighted Score
+                </p>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-4xl font-bold" style={{ color: scoreColor(finalScore), fontFamily: "'DM Sans', sans-serif" }}>
+                    {finalScore !== null ? finalScore.toFixed(2) : "—"}
+                  </span>
+                  <span className="text-sm" style={{ color: "oklch(0.65 0.012 65)" }}>/ 5.00</span>
+                </div>
+                <p className="text-sm font-semibold mt-1" style={{ color: scoreColor(finalScore) }}>
+                  {finalScore !== null ? scoreLabel(finalScore) : "Pending"}
+                </p>
+              </div>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full" style={{ background: "oklch(0.93 0.006 80)" }}>
+                <Star size={13} style={{ color: "oklch(0.52 0.12 65)" }} />
+                <span className="text-xs font-medium" style={{ color: "oklch(0.45 0.012 65)" }}>
+                  {selected.status === "closed" ? "Final" : "In Progress"}
+                </span>
+              </div>
             </div>
-          )}
-        </div>
-      </div>
 
-      {/* Comments */}
-      {selected?.comments && (
-        <div className="hr-card p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <Star size={16} style={{ color: "oklch(0.42 0.18 255)" }} />
-            <h3 className="text-sm font-semibold" style={{ color: "oklch(0.22 0.012 65)", fontFamily: "'DM Sans', sans-serif" }}>
-              Comments
-            </h3>
+            {/* Score breakdown row */}
+            <div className="grid grid-cols-3 gap-3 pt-4 border-t" style={{ borderColor: "oklch(0.93 0.006 80)" }}>
+              <div className="text-center">
+                <div className="flex items-center justify-center gap-1 mb-1">
+                  <User size={12} style={{ color: "oklch(0.42 0.18 255)" }} />
+                  <span className="text-xs font-medium" style={{ color: "oklch(0.42 0.18 255)" }}>Self (20%)</span>
+                </div>
+                <p className="text-xl font-bold" style={{ color: scoreColor(selfScore) }}>
+                  {selfScore !== null ? selfScore.toFixed(2) : "—"}
+                </p>
+              </div>
+              <div className="text-center">
+                <div className="flex items-center justify-center gap-1 mb-1">
+                  <Users size={12} style={{ color: "oklch(0.52 0.15 65)" }} />
+                  <span className="text-xs font-medium" style={{ color: "oklch(0.52 0.15 65)" }}>Peer (30%)</span>
+                </div>
+                <p className="text-xl font-bold" style={{ color: scoreColor(peerScore) }}>
+                  {peerScore !== null ? peerScore.toFixed(2) : "—"}
+                </p>
+              </div>
+              <div className="text-center">
+                <div className="flex items-center justify-center gap-1 mb-1">
+                  <Briefcase size={12} style={{ color: "oklch(0.42 0.15 25)" }} />
+                  <span className="text-xs font-medium" style={{ color: "oklch(0.42 0.15 25)" }}>Manager (50%)</span>
+                </div>
+                <p className="text-xl font-bold" style={{ color: scoreColor(managerScore) }}>
+                  {managerScore !== null ? managerScore.toFixed(2) : "—"}
+                </p>
+              </div>
+            </div>
+
+            {contractorScore !== null && (
+              <div className="mt-3 pt-3 border-t flex items-center gap-2" style={{ borderColor: "oklch(0.93 0.006 80)" }}>
+                <ClipboardList size={12} style={{ color: "oklch(0.42 0.15 300)" }} />
+                <span className="text-xs" style={{ color: "oklch(0.55 0.012 65)" }}>Contractor evaluations avg:</span>
+                <ScoreBadge score={contractorScore} />
+              </div>
+            )}
+
+            {/* Weight formula note */}
+            <p className="text-xs mt-3 pt-3 border-t" style={{ borderColor: "oklch(0.93 0.006 80)", color: "oklch(0.65 0.012 65)" }}>
+              Final score = Self × 20% + Peer × 30% + Manager × 50%
+              {(selfScore === null || peerScore === null || managerScore === null) && " (partial — some evaluations pending)"}
+            </p>
           </div>
-          <p className="text-sm leading-relaxed p-4 rounded-lg" style={{ background: "oklch(0.975 0.006 80)", color: "oklch(0.28 0.012 65)" }}>
-            {selected.comments}
-          </p>
-        </div>
+
+          {/* Per-category breakdown */}
+          <div className="space-y-3">
+            <h3 className="text-sm font-semibold" style={{ color: "oklch(0.32 0.012 65)" }}>Category Breakdown</h3>
+
+            <CategoryTable
+              categories={(selected.self?.categoryScores as any[]) ?? []}
+              label="Self Evaluation"
+              icon={<User size={13} />}
+              color="oklch(0.42 0.18 255)"
+            />
+
+            <CategoryTable
+              categories={(selected.peer?.categoryScores as any[]) ?? []}
+              label="Peer Evaluations (avg)"
+              icon={<Users size={13} />}
+              color="oklch(0.52 0.15 65)"
+            />
+
+            <CategoryTable
+              categories={(selected.manager?.categoryScores as any[]) ?? []}
+              label="Manager Evaluation"
+              icon={<Briefcase size={13} />}
+              color="oklch(0.42 0.15 25)"
+            />
+
+            {(selected.contractor?.categoryScores as any[])?.length > 0 && (
+              <CategoryTable
+                categories={(selected.contractor?.categoryScores as any[]) ?? []}
+                label="Contractor Evaluations (avg)"
+                icon={<ClipboardList size={13} />}
+                color="oklch(0.42 0.15 300)"
+              />
+            )}
+          </div>
+        </>
       )}
     </div>
   );
