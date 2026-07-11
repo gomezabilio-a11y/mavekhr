@@ -454,9 +454,9 @@ export default function PeriodicEvaluation() {
   function getFormType(task: any): FormType {
     if (task.type === "self") return myEmployee?.isManager ? "self_manager" : "self_regular";
     if (task.type === "peer") return "peer";
-    if (task.type === "manager") return "peer"; // manager eval uses peer form
+    if (task.type === "manager") return "upward_eval" as FormType; // employee evaluating manager uses upward_eval form
     if (task.type === "contractor") return "contractor";
-    if (task.type === "upward") return "upward_eval" as FormType; // upward eval has its own form
+    if (task.type === "upward") return "upward_eval" as FormType;
     return "peer";
   }
 
