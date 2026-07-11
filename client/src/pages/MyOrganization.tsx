@@ -8,7 +8,7 @@
  */
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import EmployeePhoto from "@/components/EmployeePhoto";
 import { Building2, Users, Layers, Network, ChevronDown, Loader2 } from "lucide-react";
 
 // ─── Type config ───────────────────────────────────────────────────────────────
@@ -175,14 +175,12 @@ export default function MyOrganization() {
               className="flex items-center gap-3 p-4 rounded-xl"
               style={{ border: "2px solid oklch(0.82 0.12 255)", background: "oklch(0.97 0.04 255)" }}
             >
-              <div
-                className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden text-sm font-bold text-white"
-                style={{ background: manager.photoUrl ? undefined : "oklch(0.42 0.18 255)" }}
-              >
-                {manager.photoUrl
-                  ? <img src={manager.photoUrl} alt={manager.firstName} className="w-full h-full object-cover" />
-                  : <>{manager.firstName?.[0]}{manager.lastName?.[0]}</>}
-              </div>
+              <EmployeePhoto
+                photoUrl={manager.photoUrl}
+                initials={`${manager.firstName?.[0] ?? ""}${manager.lastName?.[0] ?? ""}`}
+                size="md"
+                bgColor="oklch(0.42 0.18 255)"
+              />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <p className="text-sm font-semibold" style={{ color: "oklch(0.22 0.012 65)", fontFamily: "'DM Sans', sans-serif" }}>
@@ -269,22 +267,18 @@ export default function MyOrganization() {
                       background: isMe ? "oklch(0.97 0.06 80)" : "white",
                     }}
                   >
-                    <Avatar className="w-10 h-10 flex-shrink-0">
-                      {member.photoUrl && <AvatarFallback style={{ background: "oklch(0.42 0.18 255)", color: "white" }}>{initials}</AvatarFallback>}
-                      <AvatarFallback
-                        className="text-xs font-semibold"
-                        style={{
-                          background: member.isManager
-                            ? "oklch(0.42 0.18 255)"
-                            : isMe
-                            ? "oklch(0.72 0.15 65)"
-                            : "oklch(0.62 0.1 255)",
-                          color: "white",
-                        }}
-                      >
-                        {initials}
-                      </AvatarFallback>
-                    </Avatar>
+                    <EmployeePhoto
+                      photoUrl={member.photoUrl}
+                      initials={initials}
+                      size="sm"
+                      bgColor={
+                        member.isManager
+                          ? "oklch(0.42 0.18 255)"
+                          : isMe
+                          ? "oklch(0.72 0.15 65)"
+                          : "oklch(0.62 0.1 255)"
+                      }
+                    />
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
