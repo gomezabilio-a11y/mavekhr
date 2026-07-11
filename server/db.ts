@@ -848,7 +848,7 @@ export async function getComputedEvaluationResults(employeeId: number) {
 
     // Helper: compute average KPI scores per category for a list of tasks
     const computeScoresForTasks = async (taskList: typeof cycleTasks) => {
-      if (taskList.length === 0) return { categoryScores: {}, totalAvg: null };
+      if (taskList.length === 0) return { categoryScores: [] as Array<{ name: string; avg: number; count: number }>, totalAvg: null };
       const categoryScores: Record<string, { name: string; scores: number[] }> = {};
       let allScores: number[] = [];
 
