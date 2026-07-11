@@ -214,7 +214,8 @@ export default function AdminSalary() {
   async function handleEdit(rec: typeof salaryRecords[0]) {
     setEditId(rec.id);
     const hasNextDate = rec.nextPaymentDate != null && String(rec.nextPaymentDate).trim() !== "";
-    // Load components for this record
+    // Invalidate cache first so we always get fresh data from the server
+    await utils.salary.components.invalidate({ salaryRecordId: rec.id });
     const comps = await utils.salary.components.fetch({ salaryRecordId: rec.id });
     setForm({
       employeeId: rec.employeeId.toString(),
