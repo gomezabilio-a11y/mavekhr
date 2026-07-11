@@ -60,9 +60,11 @@ export default function AdminEvalCycles() {
   const [assignStep, setAssignStep] = useState<"select_evaluatee" | "select_evaluators">("select_evaluatee");
   const [selectedEvaluateeId, setSelectedEvaluateeId] = useState<number | null>(null);
   const [selectedPeerIds, setSelectedPeerIds] = useState<number[]>([]);
+  const [selectedContractorIds, setSelectedContractorIds] = useState<number[]>([]);
   const [selectedManagerId, setSelectedManagerId] = useState<number | null>(null);
   const [includeUpward, setIncludeUpward] = useState(false);
   const [deleteTaskConfirm, setDeleteTaskConfirm] = useState<number | null>(null);
+  const [editParticipantId, setEditParticipantId] = useState<number | null>(null); // participantId being edited
 
   const utils = trpc.useUtils();
 
@@ -114,25 +116,48 @@ export default function AdminEvalCycles() {
   const selectedCycle = cycles.find(c => c.id === selectedCycleId);
   const empMap = useMemo(() => Object.fromEntries(employees.map(e => [e.id, e])), [employees]);
 
-  // Group tasks by evaluatee
-  const tasksByEvaluatee = useMemo(() => {
+  // Group tasks by evaluator (participant who does the evaluating)
+  const tasksByEvaluator = useMemo(() => {
     const map: Record<number, typeof tasks> = {};
     for (const t of tasks) {
-      if (!map[t.evaluateeId]) map[t.evaluateeId] = [];
-      map[t.evaluateeId].push(t);
+      if (!map[t.evaluatorId]) map[t.evaluatorId] = [];
+      map[t.evaluatorId].push(t);
     }
     return map;
   }, [tasks]);
 
-  // Evaluatees already in this cycle
-  const assignedEvaluateeIds = useMemo(() => new Set(tasks.map(t => t.evaluateeId)), [tasks]);
+  // Participants already in this cycle (by evaluatorId)
+  const assignedParticipantIds = useMemo(() => new Set(tasks.map(t => t.evaluatorId)), [tasks]);
 
   function resetAssignState() {
     setAssignStep("select_evaluatee");
     setSelectedEvaluateeId(null);
     setSelectedPeerIds([]);
+    setSelectedContractorIds([]);
     setSelectedManagerId(null);
     setIncludeUpward(false);
+    setEditParticipantId(null);
+  }
+
+  function handleEditParticipant(participantId: number) {
+    const evalTasks = tasksByEvaluator[participantId] ?? [];
+    // Pre-populate from existing tasks (evaluatees that participant evaluates)
+    const peerIds = evalTasks
+      .filter(t => t.type === "peer")
+      .map(t => t.evaluateeId);
+    const contractorIds = evalTasks
+      .filter(t => t.type === "contractor")
+      .map(t => t.evaluateeId);
+    const managerTask = evalTasks.find(t => t.type === "manager");
+    const upwardTask = evalTasks.find(t => t.type === "upward");
+    setEditParticipantId(participantId);
+    setSelectedEvaluateeId(participantId);
+    setSelectedPeerIds(peerIds);
+    setSelectedContractorIds(contractorIds);
+    setSelectedManagerId(managerTask ? managerTask.evaluateeId : null);
+    setIncludeUpward(!!upwardTask);
+    setAssignStep("select_evaluators");
+    setShowAssignPanel(true);
   }
 
   function handleEditCycle(cycle: typeof cycles[0]) {
@@ -162,37 +187,37 @@ export default function AdminEvalCycles() {
 
   function handleAssignConfirm() {
     if (!selectedCycleId || !selectedEvaluateeId) return;
-    const evaluatee = empMap[selectedEvaluateeId];
-    if (!evaluatee) return;
+    const participant = empMap[selectedEvaluateeId]; // participant = the person doing the evaluating
+    if (!participant) return;
 
-    const tasks: Array<{ evaluatorId: number; evaluateeId: number; type: TaskType }> = [];
+    const newTasks: Array<{ evaluatorId: number; evaluateeId: number; type: TaskType }> = [];
 
-    // Self evaluation (only for regular employees)
-    if (evaluatee.employeeRole !== "contractor") {
-      const selfFormType = evaluatee.isManager ? "self_manager" : "self_regular";
-      tasks.push({ evaluatorId: selectedEvaluateeId, evaluateeId: selectedEvaluateeId, type: "self" });
+    // Self evaluation (participant evaluates themselves)
+    if (participant.employeeRole !== "contractor") {
+      newTasks.push({ evaluatorId: selectedEvaluateeId, evaluateeId: selectedEvaluateeId, type: "self" });
     }
 
-    // Peer evaluations
+    // Peer evaluations: participant evaluates selected peers
     for (const peerId of selectedPeerIds) {
-      const peer = empMap[peerId];
-      if (!peer) continue;
-      // If evaluatee is contractor, peer uses "contractor" form type
-      const type: TaskType = evaluatee.employeeRole === "contractor" ? "contractor" : "peer";
-      tasks.push({ evaluatorId: peerId, evaluateeId: selectedEvaluateeId, type });
+      newTasks.push({ evaluatorId: selectedEvaluateeId, evaluateeId: peerId, type: "peer" });
     }
 
-    // Manager evaluation
+    // Contractor evaluations: participant evaluates selected contractors
+    for (const contractorId of selectedContractorIds) {
+      newTasks.push({ evaluatorId: selectedEvaluateeId, evaluateeId: contractorId, type: "contractor" });
+    }
+
+    // Manager evaluation: participant evaluates their manager
     if (selectedManagerId) {
-      tasks.push({ evaluatorId: selectedManagerId, evaluateeId: selectedEvaluateeId, type: "manager" });
+      newTasks.push({ evaluatorId: selectedEvaluateeId, evaluateeId: selectedManagerId, type: "manager" });
     }
 
-    // Upward evaluation: evaluatee evaluates their manager
+    // Upward evaluation: same as manager but uses upward form
     if (includeUpward && selectedManagerId) {
-      tasks.push({ evaluatorId: selectedEvaluateeId, evaluateeId: selectedManagerId, type: "upward" });
+      newTasks.push({ evaluatorId: selectedEvaluateeId, evaluateeId: selectedManagerId, type: "upward" });
     }
 
-    bulkCreateTasksMut.mutate({ cycleId: selectedCycleId, tasks });
+    bulkCreateTasksMut.mutate({ cycleId: selectedCycleId, tasks: newTasks });
   }
 
   const inputCls = "w-full px-3 py-2 rounded-lg border text-sm outline-none focus:ring-2 transition-all";
@@ -303,7 +328,7 @@ export default function AdminEvalCycles() {
                 <div>
                   <h3 className="font-bold text-base" style={{ color: "oklch(0.22 0.012 65)" }}>{selectedCycle.period}</h3>
                   <p className="text-xs mt-0.5" style={{ color: "oklch(0.65 0.012 65)" }}>
-                    {Object.values(tasksByEvaluatee).length} evaluatees · {tasks.length} total tasks
+                    {Object.values(tasksByEvaluator).length} participants · {tasks.length} total tasks
                   </p>
                 </div>
                 <button
@@ -320,49 +345,57 @@ export default function AdminEvalCycles() {
                 <div className="flex items-center justify-center py-10">
                   <div className="w-5 h-5 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: "oklch(0.62 0.18 255)" }} />
                 </div>
-              ) : Object.keys(tasksByEvaluatee).length === 0 ? (
+              ) : Object.keys(tasksByEvaluator).length === 0 ? (
                 <div className="text-center py-10 rounded-xl border border-dashed" style={{ borderColor: "oklch(0.88 0.006 80)" }}>
                   <Users size={28} className="mx-auto mb-2" style={{ color: "oklch(0.82 0.006 80)" }} />
                   <p className="text-sm" style={{ color: "oklch(0.65 0.012 65)" }}>No participants yet. Click "Add Participant" to assign evaluations.</p>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {Object.entries(tasksByEvaluatee).map(([evaluateeIdStr, evalTasks]) => {
-                    const evaluateeId = parseInt(evaluateeIdStr);
-                    const evaluatee = empMap[evaluateeId];
-                    const completedCount = evalTasks.filter(t => t.status === "completed").length;
+                  {Object.entries(tasksByEvaluator).map(([participantIdStr, participantTasks]) => {
+                    const participantId = parseInt(participantIdStr);
+                    const participant = empMap[participantId];
+                    const typedTasks = participantTasks as typeof tasks;
+                    const completedCount = typedTasks.filter(t => t.status === "completed").length;
                     return (
-                      <div key={evaluateeId} className="rounded-xl border overflow-hidden" style={{ borderColor: "oklch(0.90 0.006 80)", background: "white" }}>
-                        {/* Evaluatee header */}
+                      <div key={participantId} className="rounded-xl border overflow-hidden" style={{ borderColor: "oklch(0.90 0.006 80)", background: "white" }}>
+                        {/* Participant header */}
                         <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "oklch(0.94 0.006 80)", background: "oklch(0.98 0.006 80)" }}>
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
                               style={{ background: "oklch(0.52 0.18 255)" }}>
-                              {evaluatee ? `${evaluatee.firstName[0]}${evaluatee.lastName[0]}` : "?"}
+                              {participant ? `${participant.firstName[0]}${participant.lastName[0]}` : "?"}
                             </div>
                             <div>
                               <p className="font-semibold text-sm" style={{ color: "oklch(0.22 0.012 65)" }}>
-                                {evaluatee ? `${evaluatee.firstName} ${evaluatee.lastName}` : `Employee #${evaluateeId}`}
+                                {participant ? `${participant.firstName} ${participant.lastName}` : `Employee #${participantId}`}
                               </p>
                               <p className="text-xs" style={{ color: "oklch(0.65 0.012 65)" }}>
-                                {evaluatee?.position ?? ""} · {evaluatee?.employeeRole === "contractor" ? "Contractor" : "Regular"} · {completedCount}/{evalTasks.length} completed
+                                {participant?.position ?? ""} · {participant?.employeeRole === "contractor" ? "Contractor" : "Regular"} · {completedCount}/{typedTasks.length} completed
                               </p>
                             </div>
                           </div>
                           <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => handleEditParticipant(participantId)}
+                              className="p-1.5 rounded-lg hover:bg-blue-50 transition-colors mr-1"
+                              title="Edit participant tasks"
+                            >
+                              <Edit2 size={13} style={{ color: "oklch(0.52 0.18 255)" }} />
+                            </button>
                             <span className="text-xs px-2 py-0.5 rounded-full" style={{
-                              background: completedCount === evalTasks.length ? "oklch(0.92 0.08 145)" : "oklch(0.93 0.04 65)",
-                              color: completedCount === evalTasks.length ? "oklch(0.42 0.18 145)" : "oklch(0.52 0.12 65)",
+                              background: completedCount === typedTasks.length ? "oklch(0.92 0.08 145)" : "oklch(0.93 0.04 65)",
+                              color: completedCount === typedTasks.length ? "oklch(0.42 0.18 145)" : "oklch(0.52 0.12 65)",
                             }}>
-                              {completedCount === evalTasks.length ? "All Done" : `${evalTasks.length - completedCount} pending`}
+                              {completedCount === typedTasks.length ? "All Done" : `${typedTasks.length - completedCount} pending`}
                             </span>
                           </div>
                         </div>
 
-                        {/* Task rows */}
+                        {/* Task rows - shows who participant evaluates */}
                         <div className="divide-y" style={{ borderColor: "oklch(0.94 0.006 80)" }}>
-                          {evalTasks.map(task => {
-                            const evaluator = empMap[task.evaluatorId];
+                          {typedTasks.map(task => {
+                            const evaluatee = empMap[task.evaluateeId];
                             const tc = TASK_TYPE_COLORS[task.type as TaskType];
                             return (
                               <div key={task.id} className="flex items-center justify-between px-4 py-2.5 gap-3">
@@ -371,8 +404,8 @@ export default function AdminEvalCycles() {
                                     {TASK_TYPE_LABELS[task.type as TaskType]}
                                   </span>
                                   <span className="text-sm truncate" style={{ color: "oklch(0.35 0.012 65)" }}>
-                                    {evaluator ? `${evaluator.firstName} ${evaluator.lastName}` : `Employee #${task.evaluatorId}`}
-                                    {task.evaluatorId === evaluateeId && <span className="ml-1 text-xs" style={{ color: "oklch(0.65 0.012 65)" }}>(self)</span>}
+                                    {evaluatee ? `${evaluatee.firstName} ${evaluatee.lastName}` : `Employee #${task.evaluateeId}`}
+                                    {task.evaluateeId === participantId && <span className="ml-1 text-xs" style={{ color: "oklch(0.65 0.012 65)" }}>(self)</span>}
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-2 flex-shrink-0">
@@ -495,7 +528,7 @@ export default function AdminEvalCycles() {
             {/* Header */}
             <div className="flex items-center justify-between p-5 border-b flex-shrink-0" style={{ borderColor: "oklch(0.90 0.006 80)" }}>
               <div>
-                <h3 className="font-semibold" style={{ color: "oklch(0.22 0.012 65)" }}>Add Participant</h3>
+                <h3 className="font-semibold" style={{ color: "oklch(0.22 0.012 65)" }}>{editParticipantId ? "Edit Participant" : "Add Participant"}</h3>
                 <p className="text-xs mt-0.5" style={{ color: "oklch(0.65 0.012 65)" }}>{selectedCycle.period}</p>
               </div>
               <button onClick={() => { setShowAssignPanel(false); resetAssignState(); }}>
@@ -517,7 +550,7 @@ export default function AdminEvalCycles() {
                       {i + 1}
                     </div>
                     <span className="text-xs font-medium" style={{ color: assignStep === step ? "oklch(0.22 0.012 65)" : "oklch(0.65 0.012 65)" }}>
-                      {step === "select_evaluatee" ? "Select Evaluatee" : "Assign Evaluators"}
+                      {step === "select_evaluatee" ? "Select Participant" : "Assign Evaluatees"}
                     </span>
                   </div>
                 </div>
@@ -529,10 +562,10 @@ export default function AdminEvalCycles() {
               {assignStep === "select_evaluatee" && (
                 <div className="space-y-2">
                   <p className="text-xs font-medium mb-3" style={{ color: "oklch(0.45 0.012 65)" }}>
-                    Choose the employee to be evaluated:
+                    Choose the participant (evaluator):
                   </p>
                   {employees.filter(e => e.status === "active").map(emp => {
-                    const alreadyAssigned = assignedEvaluateeIds.has(emp.id);
+                    const alreadyAssigned = !editParticipantId && assignedParticipantIds.has(emp.id);
                     const isSelected = selectedEvaluateeId === emp.id;
                     return (
                       <button
@@ -568,69 +601,111 @@ export default function AdminEvalCycles() {
               )}
 
               {assignStep === "select_evaluators" && selectedEvaluateeId && (() => {
-                const evaluatee = empMap[selectedEvaluateeId];
-                const isContractor = evaluatee?.employeeRole === "contractor";
-                const otherEmployees = employees.filter(e => e.id !== selectedEvaluateeId && e.status === "active");
+                const participant = empMap[selectedEvaluateeId];
+                const isContractor = participant?.employeeRole === "contractor";
+                const regularEmployees = employees.filter(e => e.id !== selectedEvaluateeId && e.status === "active" && e.employeeRole !== "contractor");
+                const contractorEmployees = employees.filter(e => e.id !== selectedEvaluateeId && e.status === "active" && e.employeeRole === "contractor");
                 const managers = employees.filter(e => e.isManager && e.id !== selectedEvaluateeId && e.status === "active");
 
                 return (
                   <div className="space-y-5">
-                    {/* Evaluatee summary */}
+                    {/* Participant summary */}
                     <div className="flex items-center gap-3 p-3 rounded-xl" style={{ background: "oklch(0.97 0.04 255)" }}>
                       <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white"
                         style={{ background: "oklch(0.52 0.18 255)" }}>
-                        {evaluatee?.firstName[0]}{evaluatee?.lastName[0]}
+                        {participant?.firstName[0]}{participant?.lastName[0]}
                       </div>
                       <div>
                         <p className="font-semibold text-sm" style={{ color: "oklch(0.22 0.012 65)" }}>
-                          {evaluatee?.firstName} {evaluatee?.lastName}
+                          {participant?.firstName} {participant?.lastName}
                         </p>
                         <p className="text-xs" style={{ color: "oklch(0.55 0.012 65)" }}>
-                          {isContractor ? "Contractor — No self-evaluation" : evaluatee?.isManager ? "Manager — Self (Manager form)" : "Regular — Self evaluation"}
+                          {isContractor ? "Contractor — No self-evaluation" : participant?.isManager ? "Manager — Self (Manager form)" : "Regular — Self evaluation"}
                         </p>
                       </div>
                     </div>
 
-                    {/* Peer evaluators */}
-                    <div>
-                      <p className="text-xs font-semibold mb-2" style={{ color: "oklch(0.45 0.012 65)" }}>
-                        {isContractor ? "Peer Evaluators (Contractor form)" : "Peer Evaluators"} — select multiple
-                      </p>
-                      <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                        {otherEmployees.map(emp => {
-                          const isSelected = selectedPeerIds.includes(emp.id);
-                          return (
-                            <button
-                              key={emp.id}
-                              onClick={() => setSelectedPeerIds(prev =>
-                                isSelected ? prev.filter(id => id !== emp.id) : [...prev, emp.id]
-                              )}
-                              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg border text-left transition-all"
-                              style={{
-                                borderColor: isSelected ? "oklch(0.62 0.18 145)" : "oklch(0.90 0.006 80)",
-                                background: isSelected ? "oklch(0.97 0.04 145)" : "white",
-                              }}
-                            >
-                              <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
-                                style={{ background: "oklch(0.62 0.18 145)" }}>
-                                {emp.firstName[0]}{emp.lastName[0]}
-                              </div>
-                              <span className="text-sm flex-1 truncate" style={{ color: "oklch(0.22 0.012 65)" }}>
-                                {emp.firstName} {emp.lastName}
-                              </span>
-                              <span className="text-xs flex-shrink-0" style={{ color: "oklch(0.65 0.012 65)" }}>{emp.position}</span>
-                              {isSelected && <CheckCircle2 size={14} style={{ color: "oklch(0.52 0.18 145)" }} />}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Manager evaluator */}
+                    {/* Peer evaluatees (regular employees) */}
                     {!isContractor && (
                       <div>
                         <p className="text-xs font-semibold mb-2" style={{ color: "oklch(0.45 0.012 65)" }}>
-                          Manager Evaluator — select one (optional)
+                          Peer Evaluatees — select multiple
+                        </p>
+                        <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                          {regularEmployees.map(emp => {
+                            const isSelected = selectedPeerIds.includes(emp.id);
+                            return (
+                              <button
+                                key={emp.id}
+                                onClick={() => setSelectedPeerIds(prev =>
+                                  isSelected ? prev.filter(id => id !== emp.id) : [...prev, emp.id]
+                                )}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg border text-left transition-all"
+                                style={{
+                                  borderColor: isSelected ? "oklch(0.62 0.18 145)" : "oklch(0.90 0.006 80)",
+                                  background: isSelected ? "oklch(0.97 0.04 145)" : "white",
+                                }}
+                              >
+                                <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+                                  style={{ background: "oklch(0.62 0.18 145)" }}>
+                                  {emp.firstName[0]}{emp.lastName[0]}
+                                </div>
+                                <span className="text-sm flex-1 truncate" style={{ color: "oklch(0.22 0.012 65)" }}>
+                                  {emp.firstName} {emp.lastName}
+                                </span>
+                                <span className="text-xs flex-shrink-0" style={{ color: "oklch(0.65 0.012 65)" }}>{emp.position}</span>
+                                {isSelected && <CheckCircle2 size={14} style={{ color: "oklch(0.52 0.18 145)" }} />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Contractor evaluatees */}
+                    {contractorEmployees.length > 0 && (
+                      <div>
+                        <p className="text-xs font-semibold mb-2" style={{ color: "oklch(0.45 0.012 65)" }}>
+                          Contractor Evaluatees — select multiple
+                        </p>
+                        <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                          {contractorEmployees.map(emp => {
+                            const isSelected = selectedContractorIds.includes(emp.id);
+                            return (
+                              <button
+                                key={emp.id}
+                                onClick={() => setSelectedContractorIds(prev =>
+                                  isSelected ? prev.filter(id => id !== emp.id) : [...prev, emp.id]
+                                )}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg border text-left transition-all"
+                                style={{
+                                  borderColor: isSelected ? "oklch(0.62 0.12 65)" : "oklch(0.90 0.006 80)",
+                                  background: isSelected ? "oklch(0.97 0.04 65)" : "white",
+                                }}
+                              >
+                                <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+                                  style={{ background: "oklch(0.62 0.12 65)" }}>
+                                  {emp.firstName[0]}{emp.lastName[0]}
+                                </div>
+                                <span className="text-sm flex-1 truncate" style={{ color: "oklch(0.22 0.012 65)" }}>
+                                  {emp.firstName} {emp.lastName}
+                                </span>
+                                <div className="flex items-center gap-1.5 flex-shrink-0">
+                                  <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: "oklch(0.93 0.04 65)", color: "oklch(0.52 0.12 65)" }}>Contractor</span>
+                                  {isSelected && <CheckCircle2 size={14} style={{ color: "oklch(0.52 0.12 65)" }} />}
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Manager evaluatee */}
+                    {!isContractor && (
+                      <div>
+                        <p className="text-xs font-semibold mb-2" style={{ color: "oklch(0.45 0.012 65)" }}>
+                          Manager Evaluatee — select one (optional)
                         </p>
                         <div className="space-y-1.5">
                           <button
@@ -691,7 +766,7 @@ export default function AdminEvalCycles() {
                           </div>
                           <div>
                             <p className="text-sm font-medium" style={{ color: "oklch(0.22 0.012 65)" }}>Include Upward Evaluation</p>
-                            <p className="text-xs" style={{ color: "oklch(0.55 0.012 65)" }}>Employee evaluates their manager</p>
+                            <p className="text-xs" style={{ color: "oklch(0.55 0.012 65)" }}>Participant evaluates their manager</p>
                           </div>
                         </button>
                       </div>
@@ -701,10 +776,11 @@ export default function AdminEvalCycles() {
                     <div className="rounded-xl p-3 text-xs space-y-1" style={{ background: "oklch(0.97 0.006 80)" }}>
                       <p className="font-semibold" style={{ color: "oklch(0.35 0.012 65)" }}>Tasks to be created:</p>
                       {!isContractor && <p style={{ color: "oklch(0.55 0.012 65)" }}>• 1 Self evaluation</p>}
-                      {selectedPeerIds.length > 0 && <p style={{ color: "oklch(0.55 0.012 65)" }}>• {selectedPeerIds.length} {isContractor ? "Contractor" : "Peer"} evaluation(s)</p>}
+                      {selectedPeerIds.length > 0 && <p style={{ color: "oklch(0.55 0.012 65)" }}>• {selectedPeerIds.length} Peer evaluation(s)</p>}
+                      {selectedContractorIds.length > 0 && <p style={{ color: "oklch(0.55 0.012 65)" }}>• {selectedContractorIds.length} Contractor evaluation(s)</p>}
                       {selectedManagerId && <p style={{ color: "oklch(0.55 0.012 65)" }}>• 1 Manager evaluation</p>}
-                      {includeUpward && selectedManagerId && <p style={{ color: "oklch(0.42 0.18 320)" }}>• 1 Upward evaluation (employee → manager)</p>}
-                      {isContractor && selectedPeerIds.length === 0 && <p style={{ color: "oklch(0.72 0.12 25)" }}>⚠ Select at least one peer evaluator</p>}
+                      {includeUpward && selectedManagerId && <p style={{ color: "oklch(0.42 0.18 320)" }}>• 1 Upward evaluation (participant → manager)</p>}
+                      {!isContractor && selectedPeerIds.length === 0 && selectedContractorIds.length === 0 && !selectedManagerId && <p style={{ color: "oklch(0.72 0.12 25)" }}>⚠ Only self-evaluation will be created</p>}
                     </div>
                   </div>
                 );

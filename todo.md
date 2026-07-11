@@ -95,3 +95,19 @@
 - [ ] Add upward_eval form type (employee evaluates manager) to schema and backend
 - [ ] Wire upward eval task assignment in eval cycle - assign employee to evaluate their manager
 - [ ] Add upward evaluation UI in Employee Portal PeriodicEvaluation page
+
+## Evaluation Model Redesign (Evaluator-Grouped)
+- [x] Purpose & Definition ON/OFF toggle added to category create/edit forms in AdminEvalForms
+- [x] Add upward_eval form type to schema and backend
+- [x] Wire upward eval task assignment in eval cycle
+- [x] Add upward evaluation UI in Employee Portal PeriodicEvaluation page
+- [x] Remove manager_eval form type from UI (manager evaluations use Peer form)
+- [x] Redesign evaluation task model: evaluator-grouped (participant evaluates others)
+- [x] Fix AdminEvalCycles.tsx TypeScript errors (tasksByEvaluatee → tasksByEvaluator, evalTasks type cast)
+- [x] Fix AdminEvalForms.tsx Vite parse error (stale cache, not actual duplicate)
+- [x] Update assign panel step labels: "Select Participant" / "Assign Evaluatees"
+- [x] Update assign panel step 1 header text to "Choose participant (evaluator)"
+- [x] Add Contractor Evaluatees section in assign panel step 2 (separate from Peer Evaluatees)
+- [x] Add Edit Participant button per participant row (pre-populates assign panel with existing tasks)
+- [x] Fix PeriodicEvaluation.tsx FormType union (remove manager_eval, add upward_eval)
+- [x] handleEditParticipant: pre-populates selectedPeerIds, selectedContractorIds, selectedManagerId, includeUpward

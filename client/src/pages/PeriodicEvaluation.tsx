@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type FormType = "self_regular" | "self_manager" | "peer" | "manager_eval" | "contractor";
+type FormType = "self_regular" | "self_manager" | "peer" | "upward_eval" | "contractor";
 
 interface KpiScore {
   kpiId: number;
