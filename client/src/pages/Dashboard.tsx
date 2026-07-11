@@ -5,7 +5,7 @@
  */
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import EmployeePhoto from "@/components/EmployeePhoto";
 import {
   DollarSign,
   ClipboardList,
@@ -99,13 +99,13 @@ export default function Dashboard() {
             {emp ? `${emp.position ?? "—"} · ${(emp as any).orgUnit?.name ?? "—"}` : user?.role === "admin" ? "Administrator" : "—"}
           </p>
         </div>
-        <div className="w-16 h-16 rounded-full border-2 border-white/30 hidden sm:flex items-center justify-center overflow-hidden flex-shrink-0"
-          style={{ background: emp?.photoUrl ? undefined : "oklch(0.55 0.15 255)" }}>
-          {emp?.photoUrl
-            ? <img src={emp.photoUrl} alt={fullName} className="w-full h-full object-cover" />
-            : <span className="text-white font-bold text-lg">{initials || "?"}</span>
-          }
-        </div>
+        <EmployeePhoto
+          photoUrl={emp?.photoUrl}
+          initials={initials || "?"}
+          size="lg"
+          className="border-2 border-white/30 hidden sm:flex"
+          bgColor="oklch(0.55 0.15 255)"
+        />
         {/* Decorative circles */}
         <div className="absolute -right-8 -top-8 w-32 h-32 rounded-full opacity-10" style={{ background: "white" }} />
         <div className="absolute -right-4 -bottom-12 w-40 h-40 rounded-full opacity-10" style={{ background: "white" }} />

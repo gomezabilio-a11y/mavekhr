@@ -9,7 +9,7 @@
  */
 import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import EmployeePhoto from "@/components/EmployeePhoto";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -206,13 +206,12 @@ export default function MyInformation() {
 
       {/* Profile Header */}
       <div className="hr-card p-6 flex items-center gap-5">
-        <div className="w-20 h-20 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0"
-          style={{ background: emp?.photoUrl ? undefined : "oklch(0.42 0.18 255)" }}>
-          {emp?.photoUrl
-            ? <img src={emp.photoUrl} alt={fullName} className="w-full h-full object-cover" />
-            : <span className="text-xl font-semibold text-white">{initials}</span>
-          }
-        </div>
+        <EmployeePhoto
+          photoUrl={emp?.photoUrl}
+          initials={initials}
+          size="lg"
+          bgColor="oklch(0.42 0.18 255)"
+        />
         <div>
           <h3 className="text-xl font-bold" style={{ color: "oklch(0.22 0.012 65)", fontFamily: "'DM Sans', sans-serif" }}>
             {fullName}

@@ -3,6 +3,7 @@ import { TRPCError } from "@trpc/server";
 import bcrypt from "bcryptjs";
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
+import { storageGetSignedUrl } from "./storage";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { getDb } from "./db";
@@ -151,6 +152,19 @@ export const appRouter = router({
       const emp = await getEmployeeByUserId(ctx.user.id);
       return emp ?? null;
     }),
+    // Get a presigned URL for a /manus-storage/ photo path
+    getPhotoUrl: protectedProcedure
+      .input(z.object({ storagePath: z.string() }))
+      .query(async ({ input }) => {
+        try {
+          // Strip the /manus-storage/ prefix to get the storage key
+          const key = input.storagePath.replace(/^\/manus-storage\//, "");
+          const url = await storageGetSignedUrl(key);
+          return { url };
+        } catch {
+          return { url: null };
+        }
+      }),
     teamMembers: protectedProcedure
       .input(z.object({ orgUnitId: z.number() }))
       .query(({ input }) => getTeamMembers(input.orgUnitId)),

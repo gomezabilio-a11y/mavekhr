@@ -71,3 +71,9 @@
 - [x] Frontend: Bank Information tab — Recipient Info + Bank Info sections with save button
 - [x] Frontend: Documents tab — connected to trpc.document.list (admin uploads → employee downloads)
 - [x] Verified: admin document upload → employee_documents table → employee Documents tab flow
+
+## Photo Display Fix + Admin User Management
+- [x] Fix storage proxy to pipe image content directly (no 307 redirect) — fixes photos in Admin Employees list
+- [x] Fix photo display in Dashboard, My Information, Layout sidebar (replace Radix AvatarImage with plain img)
+- [x] Admin: User Management page (/admin/users) — list all users, promote/demote admin role, reset password
+- [x] Add auth.listUsers and auth.setRole tRPC procedures (admin-only)

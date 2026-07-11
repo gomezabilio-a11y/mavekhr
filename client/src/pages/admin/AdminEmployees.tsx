@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Plus, Search, Edit2, Trash2, X, Users, Upload, Camera, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import AdminEmployeeDocuments from "./AdminEmployeeDocuments";
+import EmployeePhoto from "@/components/EmployeePhoto";
 
 type EmployeeForm = {
   employeeCode: string;
@@ -278,12 +279,12 @@ export default function AdminEmployees() {
                       <td className="px-4 py-3 font-mono text-xs" style={{ color: "oklch(0.55 0.012 65)" }}>{emp.employeeCode}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0 overflow-hidden"
-                            style={{ background: emp.photoUrl ? undefined : "oklch(0.52 0.18 255)" }}>
-                            {emp.photoUrl
-                              ? <img src={emp.photoUrl} alt={emp.firstName} className="w-full h-full object-cover" />
-                              : <>{emp.firstName[0]}{emp.lastName[0]}</>}
-                          </div>
+                          <EmployeePhoto
+                            photoUrl={emp.photoUrl}
+                            initials={`${emp.firstName[0]}${emp.lastName[0]}`}
+                            size="sm"
+                            bgColor="oklch(0.52 0.18 255)"
+                          />
                           <div>
                             <p className="font-medium" style={{ color: "oklch(0.22 0.012 65)" }}>{emp.firstName} {emp.lastName}</p>
                             <p className="text-xs" style={{ color: "oklch(0.65 0.012 65)" }}>{emp.email}</p>

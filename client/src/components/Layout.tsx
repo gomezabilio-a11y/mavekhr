@@ -24,7 +24,7 @@ import {
   Menu,
   Shield,
 } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import EmployeePhoto from "@/components/EmployeePhoto";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
@@ -190,13 +190,12 @@ export default function Layout({ children }: LayoutProps) {
       {/* User Profile at bottom */}
       <div className="p-3 border-t" style={{ borderColor: "oklch(0.28 0.02 250)" }}>
         <div className="flex items-center gap-3 px-2 py-2 rounded-md" style={{ background: "oklch(0.22 0.025 250)" }}>
-          <div className="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0"
-            style={{ background: emp?.photoUrl ? undefined : "oklch(0.42 0.18 255)" }}>
-            {emp?.photoUrl
-              ? <img src={emp.photoUrl} alt={displayName} className="w-full h-full object-cover" />
-              : <span className="text-xs font-semibold text-white">{initials}</span>
-            }
-          </div>
+          <EmployeePhoto
+            photoUrl={emp?.photoUrl}
+            initials={initials}
+            size="sm"
+            bgColor="oklch(0.42 0.18 255)"
+          />
           <div className="flex-1 min-w-0">
             <div className="text-sm font-medium text-white truncate">{displayName}</div>
             <div className="text-xs truncate" style={{ color: "oklch(0.55 0.015 250)" }}>
@@ -276,13 +275,12 @@ export default function Layout({ children }: LayoutProps) {
                 style={{ background: "oklch(0.72 0.15 65)" }}
               />
             </button>
-            <div className="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0"
-              style={{ background: emp?.photoUrl ? undefined : "oklch(0.42 0.18 255)" }}>
-              {emp?.photoUrl
-                ? <img src={emp.photoUrl} alt={displayName} className="w-full h-full object-cover" />
-                : <span className="text-xs font-semibold text-white">{initials}</span>
-              }
-            </div>
+            <EmployeePhoto
+              photoUrl={emp?.photoUrl}
+              initials={initials}
+              size="sm"
+              bgColor="oklch(0.42 0.18 255)"
+            />
           </div>
         </header>
 
