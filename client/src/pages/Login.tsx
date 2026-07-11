@@ -8,9 +8,9 @@ export default function Login() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // If already logged in, redirect to appropriate portal
+  // If already logged in, redirect to employee portal
   if (!authLoading && user) {
-    window.location.replace(user.role === "admin" ? "/admin" : "/");
+    window.location.replace("/");
     return null;
   }
 
@@ -30,12 +30,8 @@ export default function Login() {
         setError(data.error ?? "Login failed");
         return;
       }
-      // Redirect based on role
-      if (data.role === "admin") {
-        window.location.replace("/admin");
-      } else {
-        window.location.replace("/");
-      }
+      // Always go to employee portal from /login
+      window.location.replace("/");
     } catch (err) {
       setError("Network error. Please try again.");
     } finally {

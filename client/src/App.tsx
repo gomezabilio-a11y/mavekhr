@@ -26,6 +26,7 @@ import AdminEvalCycles from "./pages/admin/AdminEvalCycles";
 import AdminLeave from "./pages/admin/AdminLeave";
 import LeaveManagement from "./pages/LeaveManagement";
 import Login from "./pages/Login";
+import AdminLogin from "./pages/admin/AdminLogin";
 
 function AdminRouter() {
   return (
@@ -69,6 +70,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/login" component={Login} />
+      <Route path="/admin/login" component={AdminLogin} />
       <Route path="/admin/:rest*" component={AdminRouter} />
       <Route path="/admin" component={AdminRouter} />
       <Route component={EmployeeRouter} />

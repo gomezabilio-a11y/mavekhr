@@ -43,16 +43,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   if (!isAuthenticated) {
-    window.location.href = "/login";
+    window.location.href = "/admin/login";
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "oklch(0.97 0.006 80)" }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "oklch(0.18 0.02 255)" }}>
         <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: "oklch(0.62 0.18 255)" }} />
       </div>
     );
   }
 
   if (user?.role !== "admin") {
-    window.location.replace("/");
+    window.location.replace("/admin/login");
     return null;
   }
 

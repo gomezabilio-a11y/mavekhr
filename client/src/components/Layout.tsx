@@ -81,11 +81,7 @@ export default function Layout({ children }: LayoutProps) {
     return null;
   }
 
-  // Admin accounts should use the Admin Portal, not the Employee Portal
-  if (user?.role === "admin") {
-    window.location.replace("/admin");
-    return null;
-  }
+  // Admin accounts can also use the Employee Portal (they are employees too)
 
   const handleComingSoon = (label: string) => {
     toast.info(`${label} — Coming Soon`, {
