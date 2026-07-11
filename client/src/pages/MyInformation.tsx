@@ -206,12 +206,13 @@ export default function MyInformation() {
 
       {/* Profile Header */}
       <div className="hr-card p-6 flex items-center gap-5">
-        <Avatar className="w-20 h-20">
-          {emp?.photoUrl && <AvatarImage src={emp.photoUrl} alt={fullName} />}
-          <AvatarFallback className="text-xl font-semibold" style={{ background: "oklch(0.42 0.18 255)", color: "white" }}>
-            {initials}
-          </AvatarFallback>
-        </Avatar>
+        <div className="w-20 h-20 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0"
+          style={{ background: emp?.photoUrl ? undefined : "oklch(0.42 0.18 255)" }}>
+          {emp?.photoUrl
+            ? <img src={emp.photoUrl} alt={fullName} className="w-full h-full object-cover" />
+            : <span className="text-xl font-semibold text-white">{initials}</span>
+          }
+        </div>
         <div>
           <h3 className="text-xl font-bold" style={{ color: "oklch(0.22 0.012 65)", fontFamily: "'DM Sans', sans-serif" }}>
             {fullName}

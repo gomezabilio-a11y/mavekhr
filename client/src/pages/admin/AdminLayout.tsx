@@ -24,6 +24,7 @@ const navItems = [
   { path: "/admin/eval-forms", label: "Evaluation Forms", icon: ClipboardList },
   { path: "/admin/eval-cycles", label: "Eval Cycles", icon: RefreshCw },
   { path: "/admin/leave", label: "Leave Management", icon: CalendarDays },
+  { path: "/admin/users", label: "User Management", icon: Shield },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

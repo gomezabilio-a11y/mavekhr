@@ -81,6 +81,33 @@ export const appRouter = router({
         await db.update(users).set({ passwordHash: hash }).where(eq(users.id, input.userId));
         return { success: true };
       }),
+    // Admin: list all users with their roles
+    listUsers: adminProcedure.query(async () => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB not available" });
+      return db.select({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        role: users.role,
+        loginMethod: users.loginMethod,
+        createdAt: users.createdAt,
+        lastSignedIn: users.lastSignedIn,
+      }).from(users).orderBy(users.id);
+    }),
+    // Admin: set a user's role (admin/user)
+    setRole: adminProcedure
+      .input(z.object({
+        userId: z.number(),
+        role: z.enum(["admin", "user"]),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.id === input.userId) throw new TRPCError({ code: "BAD_REQUEST", message: "Cannot change your own role" });
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB not available" });
+        await db.update(users).set({ role: input.role }).where(eq(users.id, input.userId));
+        return { success: true };
+      }),
   }),
 
   orgUnit: router({

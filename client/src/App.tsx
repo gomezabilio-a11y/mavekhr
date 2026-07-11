@@ -24,6 +24,7 @@ import AdminAnnouncements from "./pages/admin/AdminAnnouncements";
 import AdminEvalForms from "./pages/admin/AdminEvalForms";
 import AdminEvalCycles from "./pages/admin/AdminEvalCycles";
 import AdminLeave from "./pages/admin/AdminLeave";
+import AdminUsers from "./pages/admin/AdminUsers";
 import LeaveManagement from "./pages/LeaveManagement";
 import Login from "./pages/Login";
 import AdminLogin from "./pages/admin/AdminLogin";
@@ -41,6 +42,7 @@ function AdminRouter() {
         <Route path="/admin/eval-forms" component={AdminEvalForms} />
         <Route path="/admin/eval-cycles" component={AdminEvalCycles} />
         <Route path="/admin/leave" component={AdminLeave} />
+        <Route path="/admin/users" component={AdminUsers} />
         <Route component={NotFound} />
       </Switch>
     </AdminLayout>

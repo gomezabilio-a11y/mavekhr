@@ -38,8 +38,23 @@ export function registerStorageProxy(app: Express) {
         return;
       }
 
-      res.set("Cache-Control", "no-store");
-      res.redirect(307, url);
+      // Pipe the image content directly to avoid CORS issues with 307 redirects
+      const imageResp = await fetch(url);
+      if (!imageResp.ok) {
+        res.status(502).send("Failed to fetch image from storage");
+        return;
+      }
+
+      const contentType = imageResp.headers.get("content-type") || "application/octet-stream";
+      const contentLength = imageResp.headers.get("content-length");
+
+      res.set("Content-Type", contentType);
+      res.set("Cache-Control", "public, max-age=3600");
+      res.set("Access-Control-Allow-Origin", "*");
+      if (contentLength) res.set("Content-Length", contentLength);
+
+      const buffer = await imageResp.arrayBuffer();
+      res.send(Buffer.from(buffer));
     } catch (err) {
       console.error("[StorageProxy] failed:", err);
       res.status(502).send("Storage proxy error");
