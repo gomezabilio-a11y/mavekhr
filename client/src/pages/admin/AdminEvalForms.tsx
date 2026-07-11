@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-type FormType = "self_regular" | "self_manager" | "peer" | "manager_eval" | "contractor" | "upward_eval";
+type FormType = "self_regular" | "self_manager" | "peer" | "contractor" | "upward_eval";
 
 const FORM_TYPES: {
   type: FormType;
@@ -45,15 +45,6 @@ const FORM_TYPES: {
     who: "Evaluator: Peer → Employee",
     color: "oklch(0.52 0.15 65)",
     icon: <Users size={16} />,
-  },
-  {
-    type: "manager_eval",
-    label: "Manager Evaluation",
-    badge: "Manager → Employee",
-    description: "매니저가 직속 부하를 평가하는 폼",
-    who: "Evaluator: Manager → Direct Report",
-    color: "oklch(0.42 0.15 25)",
-    icon: <UserCheck size={16} />,
   },
   {
     type: "contractor",

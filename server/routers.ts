@@ -572,7 +572,7 @@ export const appRouter = router({
     // Upsert form metadata (admin)
     upsert: adminProcedure
       .input(z.object({
-        formType: z.enum(["self_regular", "self_manager", "peer", "manager_eval", "contractor", "upward_eval"]),
+        formType: z.enum(["self_regular", "self_manager", "peer", "contractor", "upward_eval"]),
         title: z.string().min(1),
         description: z.string().optional(),
         isActive: z.boolean().default(true),
