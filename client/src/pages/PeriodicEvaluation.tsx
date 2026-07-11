@@ -167,7 +167,7 @@ function EvaluationForm({ task, formType, evaluateeLabel, cycleCloseDate }: {
   task: { id: number; evaluatorId: number; evaluateeId: number; type: string; status: string };
   formType: FormType;
   evaluateeLabel: string;
-  cycleCloseDate?: string | null;
+  cycleCloseDate?: string | Date | null;
 }) {
   const [scores, setScores] = useState<KpiScore[]>([]);
   const [overallComment, setOverallComment] = useState("");
@@ -175,8 +175,24 @@ function EvaluationForm({ task, formType, evaluateeLabel, cycleCloseDate }: {
   const [localStatus, setLocalStatus] = useState<"pending" | "in-progress" | "completed">(task.status as any);
   const prefillDoneRef = useRef(false);
 
-  // Cycle still open = closeDate is in the future (or not set)
-  const cycleIsOpen = !cycleCloseDate || new Date(cycleCloseDate) >= new Date(new Date().toDateString());
+  // Cycle still open = closeDate is today or in the future (or not set)
+  // cycleCloseDate may be a Date object (superjson) or a string — handle both
+  const cycleIsOpen = (() => {
+    if (!cycleCloseDate) return true;
+    const closeTs = cycleCloseDate instanceof Date ? cycleCloseDate.getTime() : new Date(cycleCloseDate).getTime();
+    // Compare date-only (strip time) using UTC to avoid timezone drift
+    const todayUtcMidnight = Date.UTC(
+      new Date().getUTCFullYear(),
+      new Date().getUTCMonth(),
+      new Date().getUTCDate()
+    );
+    const closeDateUtcMidnight = Date.UTC(
+      new Date(closeTs).getUTCFullYear(),
+      new Date(closeTs).getUTCMonth(),
+      new Date(closeTs).getUTCDate()
+    );
+    return closeDateUtcMidnight >= todayUtcMidnight;
+  })();
   const wasSubmitted = localStatus === "completed";
   // Locked = submitted AND cycle is closed
   const isLocked = wasSubmitted && !cycleIsOpen;
@@ -577,7 +593,13 @@ export default function PeriodicEvaluation() {
               </div>
               {selectedTask.status === "completed" && (() => {
                 const closeDate = (selectedTask as any).cycleCloseDate;
-                const cycleOpen = !closeDate || new Date(closeDate) >= new Date(new Date().toDateString());
+                const cycleOpen = (() => {
+                  if (!closeDate) return true;
+                  const closeTs = closeDate instanceof Date ? closeDate.getTime() : new Date(closeDate).getTime();
+                  const todayMidnight = Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate());
+                  const closeMidnight = Date.UTC(new Date(closeTs).getUTCFullYear(), new Date(closeTs).getUTCMonth(), new Date(closeTs).getUTCDate());
+                  return closeMidnight >= todayMidnight;
+                })();
                 return (
                   <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full" style={{ background: cycleOpen ? "oklch(0.92 0.08 255)" : "oklch(0.92 0.08 145)" }}>
                     {cycleOpen ? <CheckCircle2 size={12} style={{ color: "oklch(0.42 0.18 255)" }} /> : <Lock size={12} style={{ color: "oklch(0.42 0.18 145)" }} />}
