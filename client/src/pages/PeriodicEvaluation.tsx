@@ -403,7 +403,7 @@ export default function PeriodicEvaluation() {
     if (task.type === "peer") return "peer";
     if (task.type === "manager") return "peer"; // manager eval uses peer form
     if (task.type === "contractor") return "contractor";
-    if (task.type === "upward") return "peer"; // upward eval uses peer form
+    if (task.type === "upward") return "upward_eval" as FormType; // upward eval has its own form
     return "peer";
   }
 
