@@ -151,7 +151,7 @@ export const evaluationTasks = mysqlTable("evaluation_tasks", {
   cycleId: int("cycleId").notNull(),
   evaluatorId: int("evaluatorId").notNull(),
   evaluateeId: int("evaluateeId").notNull(),
-  type: mysqlEnum("type", ["self", "peer", "manager", "contractor"]).notNull(),
+  type: mysqlEnum("type", ["self", "peer", "manager", "contractor", "upward"]).notNull(),
   status: mysqlEnum("status", ["pending", "in-progress", "completed"]).default("pending").notNull(),
   submittedAt: timestamp("submittedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -195,6 +195,7 @@ export type EmployeeDocument = typeof employeeDocuments.$inferSelect;
 //   "peer"           = Peer Evaluation (evaluating a colleague)
 //   "manager_eval"   = Manager Evaluation (manager evaluating a direct report)
 //   "contractor"     = Contractor Evaluation (peer evaluating a contractor)
+//   "upward_eval"    = Upward Evaluation (employee evaluating their manager)
 export const evaluationForms = mysqlTable("evaluation_forms", {
   id: int("id").autoincrement().primaryKey(),
   formType: mysqlEnum("formType", [
@@ -203,6 +204,7 @@ export const evaluationForms = mysqlTable("evaluation_forms", {
     "peer",
     "manager_eval",
     "contractor",
+    "upward_eval",
   ]).notNull().unique(),
   title: varchar("title", { length: 256 }).notNull(),
   description: text("description"),

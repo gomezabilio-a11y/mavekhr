@@ -334,18 +334,21 @@ function TaskCard({ task, employees, onSelect, isSelected }: {
     peer: "Peer Evaluation",
     manager: "Manager Evaluation",
     contractor: "Contractor Evaluation",
+    upward: "Upward Evaluation",
   };
   const typeColors: Record<string, string> = {
     self: "oklch(0.42 0.18 255)",
     peer: "oklch(0.52 0.15 65)",
     manager: "oklch(0.42 0.15 25)",
     contractor: "oklch(0.42 0.15 300)",
+    upward: "oklch(0.42 0.18 320)",
   };
   const typeIcons: Record<string, React.ReactNode> = {
     self: <User size={13} />,
     peer: <Users size={13} />,
     manager: <Briefcase size={13} />,
     contractor: <ClipboardList size={13} />,
+    upward: <Users size={13} />,
   };
   const color = typeColors[task.type] ?? "oklch(0.55 0.012 65)";
 
@@ -371,7 +374,7 @@ function TaskCard({ task, employees, onSelect, isSelected }: {
         )}
       </div>
       <p className="text-sm font-semibold" style={{ color: "oklch(0.22 0.012 65)" }}>
-        {task.type === "self" ? "Myself" : evaluatee ? `${evaluatee.firstName} ${evaluatee.lastName}` : `Employee #${task.evaluateeId}`}
+        {task.type === "self" ? "Myself" : task.type === "upward" ? (evaluatee ? `${evaluatee.firstName} ${evaluatee.lastName} (Manager)` : `Employee #${task.evaluateeId}`) : evaluatee ? `${evaluatee.firstName} ${evaluatee.lastName}` : `Employee #${task.evaluateeId}`}
       </p>
       <p className="text-xs mt-0.5" style={{ color: "oklch(0.65 0.012 65)" }}>
         {task.status === "completed" ? "Submitted" : task.status === "in-progress" ? "In Progress" : "Pending"}
@@ -400,13 +403,15 @@ export default function PeriodicEvaluation() {
     if (task.type === "peer") return "peer";
     if (task.type === "manager") return "manager_eval";
     if (task.type === "contractor") return "contractor";
+    if (task.type === "upward") return "upward_eval" as FormType;
     return "peer";
   }
 
   function getEvaluateeLabel(task: any) {
     if (task.type === "self") return "myself";
     const emp = (allEmployees as any[]).find((e: any) => e.id === task.evaluateeId);
-    return emp ? `${emp.firstName} ${emp.lastName}` : `Employee #${task.evaluateeId}`;
+    const name = emp ? `${emp.firstName} ${emp.lastName}` : `Employee #${task.evaluateeId}`;
+    return task.type === "upward" ? `${name} (Manager)` : name;
   }
 
   const pendingCount = (myTasks as any[]).filter((t: any) => t.status !== "completed").length;

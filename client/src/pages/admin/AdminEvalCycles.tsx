@@ -9,7 +9,7 @@ import {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type CycleStatus = "open" | "closed" | "upcoming";
-type TaskType = "self" | "peer" | "manager" | "contractor";
+type TaskType = "self" | "peer" | "manager" | "contractor" | "upward";
 
 type CycleForm = {
   period: string;
@@ -36,6 +36,7 @@ const TASK_TYPE_LABELS: Record<TaskType, string> = {
   peer: "Peer",
   manager: "Manager",
   contractor: "Contractor",
+  upward: "Upward",
 };
 
 const TASK_TYPE_COLORS: Record<TaskType, { bg: string; text: string }> = {
@@ -43,6 +44,7 @@ const TASK_TYPE_COLORS: Record<TaskType, { bg: string; text: string }> = {
   peer:       { bg: "oklch(0.92 0.08 145)", text: "oklch(0.42 0.18 145)" },
   manager:    { bg: "oklch(0.93 0.06 30)", text: "oklch(0.45 0.15 30)" },
   contractor: { bg: "oklch(0.93 0.04 65)", text: "oklch(0.52 0.12 65)" },
+  upward:     { bg: "oklch(0.92 0.08 320)", text: "oklch(0.42 0.18 320)" },
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -59,6 +61,7 @@ export default function AdminEvalCycles() {
   const [selectedEvaluateeId, setSelectedEvaluateeId] = useState<number | null>(null);
   const [selectedPeerIds, setSelectedPeerIds] = useState<number[]>([]);
   const [selectedManagerId, setSelectedManagerId] = useState<number | null>(null);
+  const [includeUpward, setIncludeUpward] = useState(false);
   const [deleteTaskConfirm, setDeleteTaskConfirm] = useState<number | null>(null);
 
   const utils = trpc.useUtils();
@@ -129,6 +132,7 @@ export default function AdminEvalCycles() {
     setSelectedEvaluateeId(null);
     setSelectedPeerIds([]);
     setSelectedManagerId(null);
+    setIncludeUpward(false);
   }
 
   function handleEditCycle(cycle: typeof cycles[0]) {
@@ -181,6 +185,11 @@ export default function AdminEvalCycles() {
     // Manager evaluation
     if (selectedManagerId) {
       tasks.push({ evaluatorId: selectedManagerId, evaluateeId: selectedEvaluateeId, type: "manager" });
+    }
+
+    // Upward evaluation: evaluatee evaluates their manager
+    if (includeUpward && selectedManagerId) {
+      tasks.push({ evaluatorId: selectedEvaluateeId, evaluateeId: selectedManagerId, type: "upward" });
     }
 
     bulkCreateTasksMut.mutate({ cycleId: selectedCycleId, tasks });
@@ -662,12 +671,39 @@ export default function AdminEvalCycles() {
                       </div>
                     )}
 
+                    {/* Upward Evaluation toggle */}
+                    {!isContractor && selectedManagerId && (
+                      <div>
+                        <p className="text-xs font-semibold mb-2" style={{ color: "oklch(0.45 0.012 65)" }}>
+                          Upward Evaluation (optional)
+                        </p>
+                        <button
+                          onClick={() => setIncludeUpward(v => !v)}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border text-left transition-all"
+                          style={{
+                            borderColor: includeUpward ? "oklch(0.62 0.18 320)" : "oklch(0.90 0.006 80)",
+                            background: includeUpward ? "oklch(0.97 0.04 320)" : "white",
+                          }}
+                        >
+                          <div className="w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0"
+                            style={{ borderColor: includeUpward ? "oklch(0.52 0.18 320)" : "oklch(0.75 0.012 65)", background: includeUpward ? "oklch(0.52 0.18 320)" : "white" }}>
+                            {includeUpward && <span className="text-white text-xs font-bold">✓</span>}
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium" style={{ color: "oklch(0.22 0.012 65)" }}>Include Upward Evaluation</p>
+                            <p className="text-xs" style={{ color: "oklch(0.55 0.012 65)" }}>Employee evaluates their manager</p>
+                          </div>
+                        </button>
+                      </div>
+                    )}
+
                     {/* Summary */}
                     <div className="rounded-xl p-3 text-xs space-y-1" style={{ background: "oklch(0.97 0.006 80)" }}>
                       <p className="font-semibold" style={{ color: "oklch(0.35 0.012 65)" }}>Tasks to be created:</p>
                       {!isContractor && <p style={{ color: "oklch(0.55 0.012 65)" }}>• 1 Self evaluation</p>}
                       {selectedPeerIds.length > 0 && <p style={{ color: "oklch(0.55 0.012 65)" }}>• {selectedPeerIds.length} {isContractor ? "Contractor" : "Peer"} evaluation(s)</p>}
                       {selectedManagerId && <p style={{ color: "oklch(0.55 0.012 65)" }}>• 1 Manager evaluation</p>}
+                      {includeUpward && selectedManagerId && <p style={{ color: "oklch(0.42 0.18 320)" }}>• 1 Upward evaluation (employee → manager)</p>}
                       {isContractor && selectedPeerIds.length === 0 && <p style={{ color: "oklch(0.72 0.12 25)" }}>⚠ Select at least one peer evaluator</p>}
                     </div>
                   </div>

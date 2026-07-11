@@ -89,3 +89,9 @@
 - [x] Add "Admin Portal Access" toggle to employee create/edit form in AdminEmployees
 - [x] Backend: employee.create/update procedures set user role to admin/user when isAdmin flag changes
 - [x] Show admin badge/indicator in employee list for admin users
+
+## Evaluation Enhancements
+- [ ] Add Purpose & Definition ON/OFF toggle to category create/edit forms in AdminEvalForms
+- [ ] Add upward_eval form type (employee evaluates manager) to schema and backend
+- [ ] Wire upward eval task assignment in eval cycle - assign employee to evaluate their manager
+- [ ] Add upward evaluation UI in Employee Portal PeriodicEvaluation page

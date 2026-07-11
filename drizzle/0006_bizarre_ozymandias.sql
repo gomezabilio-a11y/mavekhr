@@ -1,0 +1,2 @@
+ALTER TABLE `evaluation_forms` MODIFY COLUMN `formType` enum('self_regular','self_manager','peer','manager_eval','contractor','upward_eval') NOT NULL;--> statement-breakpoint
+ALTER TABLE `evaluation_tasks` MODIFY COLUMN `type` enum('self','peer','manager','contractor','upward') NOT NULL;

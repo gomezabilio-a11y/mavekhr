@@ -461,7 +461,7 @@ export const appRouter = router({
         cycleId: z.number(),
         evaluatorId: z.number(),
         evaluateeId: z.number(),
-        type: z.enum(["self", "peer", "manager", "contractor"]),
+        type: z.enum(["self", "peer", "manager", "contractor", "upward"]),
         status: z.enum(["pending", "in-progress", "completed"]).default("pending"),
       }))
       .mutation(({ input }) => createEvaluationTask(input as any)),
@@ -471,7 +471,7 @@ export const appRouter = router({
         tasks: z.array(z.object({
           evaluatorId: z.number(),
           evaluateeId: z.number(),
-          type: z.enum(["self", "peer", "manager", "contractor"]),
+          type: z.enum(["self", "peer", "manager", "contractor", "upward"]),
         })),
       }))
       .mutation(({ input }) => {
@@ -572,7 +572,7 @@ export const appRouter = router({
     // Upsert form metadata (admin)
     upsert: adminProcedure
       .input(z.object({
-        formType: z.enum(["self_regular", "self_manager", "peer", "manager_eval", "contractor"]),
+        formType: z.enum(["self_regular", "self_manager", "peer", "manager_eval", "contractor", "upward_eval"]),
         title: z.string().min(1),
         description: z.string().optional(),
         isActive: z.boolean().default(true),

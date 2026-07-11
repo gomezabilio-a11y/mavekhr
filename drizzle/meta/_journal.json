@@ -43,6 +43,13 @@
       "when": 1783661699622,
       "tag": "0005_noisy_randall",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1783747164711,
+      "tag": "0006_bizarre_ozymandias",
+      "breakpoints": true
     }
   ]
 }

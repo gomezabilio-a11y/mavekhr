@@ -4,11 +4,11 @@ import { toast } from "sonner";
 import {
   Plus, Trash2, ChevronDown, ChevronRight, Edit2, Save, X,
   ClipboardList, CheckCircle2, AlertCircle, GripVertical,
-  FileText, Users, UserCheck, Briefcase, User
+  FileText, Users, UserCheck, Briefcase, User, ToggleLeft, ToggleRight
 } from "lucide-react";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-type FormType = "self_regular" | "self_manager" | "peer" | "manager_eval" | "contractor";
+type FormType = "self_regular" | "self_manager" | "peer" | "manager_eval" | "contractor" | "upward_eval";
 
 const FORM_TYPES: {
   type: FormType;
@@ -63,6 +63,15 @@ const FORM_TYPES: {
     who: "Evaluator: Peer → Contractor",
     color: "oklch(0.42 0.15 300)",
     icon: <Briefcase size={16} />,
+  },
+  {
+    type: "upward_eval",
+    label: "Upward Evaluation",
+    badge: "Employee → Manager",
+    description: "직원이 자신의 매니저를 평가하는 상향 평가 폼",
+    who: "Evaluator: Employee → Manager",
+    color: "oklch(0.38 0.18 320)",
+    icon: <UserCheck size={16} />,
   },
 ];
 
@@ -279,6 +288,8 @@ function CategoryBlock({
   const [editWeight, setEditWeight] = useState(cat.weight.toString());
   const [editPurpose, setEditPurpose] = useState(cat.purpose ?? "");
   const [editDefinition, setEditDefinition] = useState(cat.definition ?? "");
+  // Toggle for purpose & definition section
+  const [showPurposeDef, setShowPurposeDef] = useState(!!(cat.purpose || cat.definition));
 
   const utils = trpc.useUtils();
 
@@ -451,35 +462,63 @@ function CategoryBlock({
       {/* Category body */}
       {open && (
         <div className="p-4 space-y-4">
-          {/* Purpose & Definition (view/edit) */}
+          {/* Purpose & Definition toggle */}
           {editingMeta ? (
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-semibold mb-1" style={{ color: "oklch(0.45 0.012 65)" }}>
-                  a. Purpose
-                </label>
-                <textarea
-                  rows={3}
-                  value={editPurpose}
-                  onChange={(e) => setEditPurpose(e.target.value)}
-                  placeholder="To build trust by ensuring..."
-                  className={inputCls}
-                  style={{ ...inputStyle, resize: "vertical" }}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold mb-1" style={{ color: "oklch(0.45 0.012 65)" }}>
-                  b. Definition
-                </label>
-                <textarea
-                  rows={3}
-                  value={editDefinition}
-                  onChange={(e) => setEditDefinition(e.target.value)}
-                  placeholder="Acts with honesty, transparency..."
-                  className={inputCls}
-                  style={{ ...inputStyle, resize: "vertical" }}
-                />
-              </div>
+            <div className="space-y-3">
+              {/* Toggle button */}
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPurposeDef(v => !v);
+                  if (showPurposeDef) { setEditPurpose(""); setEditDefinition(""); }
+                }}
+                className="flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+                style={{
+                  background: showPurposeDef ? "oklch(0.92 0.08 255)" : "oklch(0.93 0.006 80)",
+                  color: showPurposeDef ? "oklch(0.32 0.18 255)" : "oklch(0.55 0.012 65)",
+                  border: `1px solid ${showPurposeDef ? "oklch(0.72 0.18 255)" : "oklch(0.82 0.006 80)"}`,
+                }}
+              >
+                {showPurposeDef
+                  ? <ToggleRight size={15} />
+                  : <ToggleLeft size={15} />}
+                Purpose & Definition
+                <span className="ml-1 font-normal" style={{ opacity: 0.7 }}>
+                  {showPurposeDef ? "ON" : "OFF"}
+                </span>
+              </button>
+
+              {/* Fields — only shown when toggle is ON */}
+              {showPurposeDef && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold mb-1" style={{ color: "oklch(0.45 0.012 65)" }}>
+                      a. Purpose
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={editPurpose}
+                      onChange={(e) => setEditPurpose(e.target.value)}
+                      placeholder="To build trust by ensuring..."
+                      className={inputCls}
+                      style={{ ...inputStyle, resize: "vertical" }}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold mb-1" style={{ color: "oklch(0.45 0.012 65)" }}>
+                      b. Definition
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={editDefinition}
+                      onChange={(e) => setEditDefinition(e.target.value)}
+                      placeholder="Acts with honesty, transparency..."
+                      className={inputCls}
+                      style={{ ...inputStyle, resize: "vertical" }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             (cat.purpose || cat.definition) && (
@@ -579,6 +618,7 @@ function FormEditor({ formId, accentColor }: { formId: number; accentColor: stri
   const [catWeight, setCatWeight] = useState("");
   const [catPurpose, setCatPurpose] = useState("");
   const [catDefinition, setCatDefinition] = useState("");
+  const [showNewPurposeDef, setShowNewPurposeDef] = useState(false);
 
   const utils = trpc.useUtils();
   const { data: form, isLoading } = trpc.evalForm.getWithContent.useQuery({ formId });
@@ -724,33 +764,57 @@ function FormEditor({ formId, accentColor }: { formId: number; accentColor: stri
               />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold mb-1" style={{ color: "oklch(0.45 0.012 65)" }}>
-                a. Purpose
-              </label>
-              <textarea
-                rows={3}
-                value={catPurpose}
-                onChange={(e) => setCatPurpose(e.target.value)}
-                placeholder="To build trust by ensuring that every employee consistently demonstrates..."
-                className={inputCls}
-                style={{ ...inputStyle, resize: "vertical" }}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold mb-1" style={{ color: "oklch(0.45 0.012 65)" }}>
-                b. Definition
-              </label>
-              <textarea
-                rows={3}
-                value={catDefinition}
-                onChange={(e) => setCatDefinition(e.target.value)}
-                placeholder="Acts with honesty, transparency, accountability, and professionalism..."
-                className={inputCls}
-                style={{ ...inputStyle, resize: "vertical" }}
-              />
-            </div>
+          {/* Purpose & Definition toggle */}
+          <div className="space-y-3">
+            <button
+              type="button"
+              onClick={() => {
+                setShowNewPurposeDef(v => !v);
+                if (showNewPurposeDef) { setCatPurpose(""); setCatDefinition(""); }
+              }}
+              className="flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+              style={{
+                background: showNewPurposeDef ? "oklch(0.92 0.08 255)" : "oklch(0.93 0.006 80)",
+                color: showNewPurposeDef ? "oklch(0.32 0.18 255)" : "oklch(0.55 0.012 65)",
+                border: `1px solid ${showNewPurposeDef ? "oklch(0.72 0.18 255)" : "oklch(0.82 0.006 80)"}`,
+              }}
+            >
+              {showNewPurposeDef ? <ToggleRight size={15} /> : <ToggleLeft size={15} />}
+              Purpose & Definition
+              <span className="ml-1 font-normal" style={{ opacity: 0.7 }}>
+                {showNewPurposeDef ? "ON" : "OFF"}
+              </span>
+            </button>
+            {showNewPurposeDef && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold mb-1" style={{ color: "oklch(0.45 0.012 65)" }}>
+                    a. Purpose
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={catPurpose}
+                    onChange={(e) => setCatPurpose(e.target.value)}
+                    placeholder="To build trust by ensuring that every employee consistently demonstrates..."
+                    className={inputCls}
+                    style={{ ...inputStyle, resize: "vertical" }}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold mb-1" style={{ color: "oklch(0.45 0.012 65)" }}>
+                    b. Definition
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={catDefinition}
+                    onChange={(e) => setCatDefinition(e.target.value)}
+                    placeholder="Acts with honesty, transparency, accountability, and professionalism..."
+                    className={inputCls}
+                    style={{ ...inputStyle, resize: "vertical" }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
           <div className="flex gap-2">
             <button
