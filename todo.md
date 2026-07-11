@@ -38,7 +38,7 @@
 - [x] Fix nested <a> anchor tags in Layout.tsx and Dashboard.tsx
 
 ## Pending
-- [ ] Employee portal pages connected to real DB data (currently using mockData.ts)
+- [x] Employee portal pages connected to real DB data (currently using mockData.ts)
 - [ ] Menus 8–12 full implementation
 
 ## Evaluation Form Builder (New)
@@ -77,3 +77,10 @@
 - [x] Fix photo display in Dashboard, My Information, Layout sidebar (replace Radix AvatarImage with plain img)
 - [x] Admin: User Management page (/admin/users) — list all users, promote/demote admin role, reset password
 - [x] Add auth.listUsers and auth.setRole tRPC procedures (admin-only)
+
+## MyAccount Real Data Connections
+- [x] Password Change — connected to auth.changePassword tRPC (validates current password, bcrypt hash update)
+- [x] Login History — shows lastSignedIn timestamp from users table (full history tracking deferred — no login_history table)
+- [x] Devices — removed hardcoded MacBook/iPhone data; shows "Device tracking not available" (session table deferred)
+- [x] Email tab — shows real user email from auth context
+- [x] Periodic Evaluation badge — dynamically fetches pending task count via evaluation.myTasks tRPC

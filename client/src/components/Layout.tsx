@@ -38,14 +38,14 @@ interface NavItem {
   badge?: number;
 }
 
-const navItems: NavItem[] = [
+const baseNavItems: NavItem[] = [
   { id: 1, label: "Dashboard", icon: LayoutDashboard, path: "/" },
   { id: 2, label: "My Information", icon: User, path: "/my-information" },
   { id: 3, label: "My Organization", icon: Network, path: "/my-organization" },
   { id: 4, label: "My Account", icon: Settings, path: "/my-account" },
   { id: 5, label: "Financial History", icon: DollarSign, path: "/financial-history" },
   { id: 6, label: "Performance Results", icon: BarChart2, path: "/performance-results" },
-  { id: 7, label: "Periodic Evaluation", icon: ClipboardList, path: "/periodic-evaluation", badge: 2 },
+  { id: 7, label: "Periodic Evaluation", icon: ClipboardList, path: "/periodic-evaluation" },
   { id: 8, label: "Leave Management", icon: Calendar, path: "/leave-management" },
   { id: 9, label: "Company Documents", icon: FileText, path: "/company-documents", comingSoon: true },
   { id: 10, label: "Training", icon: GraduationCap, path: "/training", comingSoon: true },
@@ -63,6 +63,19 @@ export default function Layout({ children }: LayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { user, loading, isAuthenticated } = useAuth();
   const { data: emp } = trpc.employee.me.useQuery(undefined, { enabled: isAuthenticated });
+
+  // Fetch pending evaluation tasks count for badge
+  const { data: evalTasks = [] } = trpc.evaluation.myTasks.useQuery(
+    { employeeId: emp?.id ?? 0 },
+    { enabled: !!emp?.id }
+  );
+  const pendingEvalCount = (evalTasks as any[]).filter((t: any) => t.status === "pending" || t.status === "in-progress").length;
+
+  const navItems: NavItem[] = baseNavItems.map(item =>
+    item.id === 7 && pendingEvalCount > 0
+      ? { ...item, badge: pendingEvalCount }
+      : item
+  );
 
   const logoutMutation = trpc.auth.logout.useMutation({
     onSuccess: () => {
