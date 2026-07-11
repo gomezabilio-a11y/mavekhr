@@ -2,7 +2,7 @@
  * PeriodicEvaluation.tsx — Periodic Evaluation Tasks
  * Design: Warm Slate — connected to real DB via tRPC
  */
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import {
@@ -171,37 +171,51 @@ function EvaluationForm({ task, formType, evaluateeLabel, cycleCloseDate }: {
 }) {
   const [scores, setScores] = useState<KpiScore[]>([]);
   const [overallComment, setOverallComment] = useState("");
-  const [prefilled, setPrefilled] = useState(false);
+  // Track submission locally so submitting one task doesn't lock others via prop change
+  const [localStatus, setLocalStatus] = useState<"pending" | "in-progress" | "completed">(task.status as any);
+  const prefillDoneRef = useRef(false);
 
   // Cycle still open = closeDate is in the future (or not set)
   const cycleIsOpen = !cycleCloseDate || new Date(cycleCloseDate) >= new Date(new Date().toDateString());
-  const wasSubmitted = task.status === "completed";
+  const wasSubmitted = localStatus === "completed";
   // Locked = submitted AND cycle is closed
   const isLocked = wasSubmitted && !cycleIsOpen;
 
   const utils = trpc.useUtils();
   const { data: form, isLoading: formLoading } = trpc.evalForm.getByType.useQuery({ formType });
-  // Load existing answers for prefilling (if already submitted)
+  // Always load existing answers so we can prefill when editing
   const { data: existingResponse, isLoading: responseLoading } = trpc.evalResponse.getWithKpi.useQuery(
     { taskId: task.id },
-    { enabled: wasSubmitted }
+    { enabled: true }
   );
 
-  // Prefill scores from existing response
-  useMemo(() => {
-    if (existingResponse && !prefilled) {
-      setScores((existingResponse.kpiAnswers as any[]).map((a: any) => ({
-        kpiId: a.kpiId,
-        score: a.score,
-        comment: a.comment ?? undefined,
-      })));
-      setOverallComment(existingResponse.overallComment ?? "");
-      setPrefilled(true);
+  // Prefill scores from existing response using useEffect (not useMemo)
+  useEffect(() => {
+    if (existingResponse && !prefillDoneRef.current) {
+      const kpiAnswers = (existingResponse.kpiAnswers as any[]) ?? [];
+      if (kpiAnswers.length > 0) {
+        setScores(kpiAnswers.map((a: any) => ({
+          kpiId: a.kpiId,
+          score: a.score,
+          comment: a.comment ?? undefined,
+        })));
+        setOverallComment(existingResponse.overallComment ?? "");
+        prefillDoneRef.current = true;
+      }
     }
-  }, [existingResponse, prefilled]);
+  }, [existingResponse]);
+
+  // Sync localStatus when task prop changes (e.g. navigating to a different task)
+  useEffect(() => {
+    setLocalStatus(task.status as any);
+    prefillDoneRef.current = false;
+    setScores([]);
+    setOverallComment("");
+  }, [task.id]);
 
   const submitMutation = trpc.evalResponse.submit.useMutation({
     onSuccess: () => {
+      setLocalStatus("completed");
       utils.evaluation.myTasks.invalidate();
       toast.success(wasSubmitted ? "Evaluation updated successfully!" : "Evaluation submitted successfully!");
     },
@@ -576,6 +590,7 @@ export default function PeriodicEvaluation() {
             </div>
 
             <EvaluationForm
+              key={selectedTask.id}
               task={selectedTask}
               formType={getFormType(selectedTask)}
               evaluateeLabel={getEvaluateeLabel(selectedTask)}
