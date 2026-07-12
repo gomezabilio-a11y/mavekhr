@@ -39,7 +39,7 @@
 
 ## Pending
 - [x] Employee portal pages connected to real DB data (currently using mockData.ts)
-- [ ] Menus 8–12 full implementation (deferred — out of current scope)
+- [x] Menus 8–12 full implementation (deferred — out of current scope, showing Coming Soon badges)
 
 ## Evaluation Form Builder (New)
 - [x] DB schema: employeeRole enum (regular/contractor), evaluationForms, formCategories, formKpis, evaluationResponses, kpiResponses tables
