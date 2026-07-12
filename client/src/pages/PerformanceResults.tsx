@@ -15,20 +15,23 @@ import {
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function scoreColor(score: number | null) {
+  // 5-tier: 1=Needs Significant Improvement, 2=Needs Improvement, 3=Meets Expectations, 4=Exceeds Expectations, 5=Outstanding
   if (score === null) return "oklch(0.72 0.006 80)";
-  if (score >= 4.5) return "oklch(0.42 0.18 145)";
-  if (score >= 3.5) return "oklch(0.42 0.18 255)";
-  if (score >= 2.5) return "oklch(0.52 0.15 65)";
-  return "oklch(0.52 0.18 27)";
+  if (score >= 4.5) return "oklch(0.42 0.18 145)";  // 5 Outstanding — green
+  if (score >= 3.5) return "oklch(0.42 0.18 255)";  // 4 Exceeds Expectations — blue
+  if (score >= 2.5) return "oklch(0.52 0.15 65)";   // 3 Meets Expectations — amber
+  if (score >= 1.5) return "oklch(0.52 0.18 27)";   // 2 Needs Improvement — orange
+  return "oklch(0.48 0.22 20)";                      // 1 Needs Significant Improvement — red
 }
 
 function scoreLabel(score: number | null) {
+  // 5-tier label system aligned with integer score values
   if (score === null) return "N/A";
-  if (score >= 4.5) return "Outstanding";
-  if (score >= 3.5) return "Excellent";
-  if (score >= 2.5) return "Good";
-  if (score >= 1.5) return "Needs Improvement";
-  return "Unsatisfactory";
+  if (score >= 4.5) return "Outstanding";                   // 5
+  if (score >= 3.5) return "Exceeds Expectations";          // 4
+  if (score >= 2.5) return "Meets Expectations";            // 3
+  if (score >= 1.5) return "Needs Improvement";             // 2
+  return "Needs Significant Improvement";                   // 1
 }
 
 function ScoreBar({ score, max = 5 }: { score: number | null; max?: number }) {
@@ -207,6 +210,7 @@ function CycleList({
 // ── Cycle Detail ──────────────────────────────────────────────────────────────
 
 function CycleDetail({ result, onBack }: { result: any; onBack: () => void }) {
+  const isContractor = result?.isContractor === true;
   const selfScore = result?.self?.totalAvg ?? null;
   const peerScore = result?.peer?.totalAvg ?? null;
   const managerScore = result?.manager?.totalAvg ?? null;
@@ -245,7 +249,10 @@ function CycleDetail({ result, onBack }: { result: any; onBack: () => void }) {
             {result.period}
           </h2>
           <p className="text-sm" style={{ color: "oklch(0.55 0.012 65)" }}>
-            Evaluation breakdown by self and peer &amp; manager assessments
+            {isContractor
+              ? "Contractor evaluation results — peer assessments average"
+              : "Evaluation breakdown by self and peer & manager assessments"
+            }
           </p>
         </div>
         <span
@@ -264,7 +271,7 @@ function CycleDetail({ result, onBack }: { result: any; onBack: () => void }) {
         <div className="flex items-start justify-between mb-4">
           <div>
             <p className="text-xs font-medium mb-1" style={{ color: "oklch(0.55 0.012 65)" }}>
-              Final Weighted Score
+              {isContractor ? "Final Score" : "Final Weighted Score"}
             </p>
             <div className="flex items-baseline gap-2">
               <span className="text-4xl font-bold" style={{ color: scoreColor(finalScore), fontFamily: "'DM Sans', sans-serif" }}>
@@ -279,78 +286,92 @@ function CycleDetail({ result, onBack }: { result: any; onBack: () => void }) {
           <Star size={28} style={{ color: scoreColor(finalScore), opacity: 0.4 }} />
         </div>
 
-        {/* Score breakdown: Self 20% | Peer & Manager 80% */}
-        <div className="grid grid-cols-2 gap-4 pt-4 border-t" style={{ borderColor: "oklch(0.93 0.006 80)" }}>
-          <div className="text-center p-3 rounded-lg" style={{ background: "oklch(0.97 0.006 255)" }}>
-            <div className="flex items-center justify-center gap-1 mb-1">
-              <User size={12} style={{ color: "oklch(0.42 0.18 255)" }} />
-              <span className="text-xs font-medium" style={{ color: "oklch(0.42 0.18 255)" }}>Self (20%)</span>
-            </div>
-            <p className="text-2xl font-bold" style={{ color: scoreColor(selfScore) }}>
-              {selfScore !== null ? selfScore.toFixed(2) : "—"}
-            </p>
-          </div>
-          <div className="text-center p-3 rounded-lg" style={{ background: "oklch(0.97 0.006 65)" }}>
-            <div className="flex items-center justify-center gap-1 mb-1">
-              <Users size={12} style={{ color: "oklch(0.42 0.15 65)" }} />
-              <span className="text-xs font-medium" style={{ color: "oklch(0.42 0.15 65)" }}>Peer &amp; Manager (80%)</span>
-            </div>
-            <p className="text-2xl font-bold" style={{ color: scoreColor(peerManagerScore) }}>
-              {peerManagerScore !== null ? peerManagerScore.toFixed(2) : "—"}
-            </p>
-            {peerScore !== null && managerScore !== null && (
-              <p className="text-xs mt-0.5" style={{ color: "oklch(0.65 0.012 65)" }}>
-                Peer {peerScore.toFixed(2)} · Mgr {managerScore.toFixed(2)}
+        {isContractor ? (
+          /* Contractor: single score box — average of all peer evaluations */
+          <div className="pt-4 border-t" style={{ borderColor: "oklch(0.93 0.006 80)" }}>
+            <div className="text-center p-3 rounded-lg" style={{ background: "oklch(0.97 0.006 300)" }}>
+              <div className="flex items-center justify-center gap-1 mb-1">
+                <ClipboardList size={12} style={{ color: "oklch(0.42 0.15 300)" }} />
+                <span className="text-xs font-medium" style={{ color: "oklch(0.42 0.15 300)" }}>Peer Evaluations Average</span>
+              </div>
+              <p className="text-2xl font-bold" style={{ color: scoreColor(contractorScore) }}>
+                {contractorScore !== null ? contractorScore.toFixed(2) : "—"}
               </p>
-            )}
+              {contractorScore === null && (
+                <p className="text-xs mt-0.5" style={{ color: "oklch(0.65 0.012 65)" }}>Awaiting evaluations</p>
+              )}
+            </div>
           </div>
-        </div>
-
-        {contractorScore !== null && (
-          <div className="mt-3 pt-3 border-t flex items-center gap-2" style={{ borderColor: "oklch(0.93 0.006 80)" }}>
-            <ClipboardList size={12} style={{ color: "oklch(0.42 0.15 300)" }} />
-            <span className="text-xs" style={{ color: "oklch(0.55 0.012 65)" }}>Contractor evaluations avg:</span>
-            <ScoreBadge score={contractorScore} />
-          </div>
+        ) : (
+          /* Regular employee: Self 20% | Peer & Manager 80% */
+          <>
+            <div className="grid grid-cols-2 gap-4 pt-4 border-t" style={{ borderColor: "oklch(0.93 0.006 80)" }}>
+              <div className="text-center p-3 rounded-lg" style={{ background: "oklch(0.97 0.006 255)" }}>
+                <div className="flex items-center justify-center gap-1 mb-1">
+                  <User size={12} style={{ color: "oklch(0.42 0.18 255)" }} />
+                  <span className="text-xs font-medium" style={{ color: "oklch(0.42 0.18 255)" }}>Self (20%)</span>
+                </div>
+                <p className="text-2xl font-bold" style={{ color: scoreColor(selfScore) }}>
+                  {selfScore !== null ? selfScore.toFixed(2) : "—"}
+                </p>
+              </div>
+              <div className="text-center p-3 rounded-lg" style={{ background: "oklch(0.97 0.006 65)" }}>
+                <div className="flex items-center justify-center gap-1 mb-1">
+                  <Users size={12} style={{ color: "oklch(0.42 0.15 65)" }} />
+                  <span className="text-xs font-medium" style={{ color: "oklch(0.42 0.15 65)" }}>Peer &amp; Manager (80%)</span>
+                </div>
+                <p className="text-2xl font-bold" style={{ color: scoreColor(peerManagerScore) }}>
+                  {peerManagerScore !== null ? peerManagerScore.toFixed(2) : "—"}
+                </p>
+                {peerScore !== null && managerScore !== null && (
+                  <p className="text-xs mt-0.5" style={{ color: "oklch(0.65 0.012 65)" }}>
+                    Peer {peerScore.toFixed(2)} · Mgr {managerScore.toFixed(2)}
+                  </p>
+                )}
+              </div>
+            </div>
+            <p className="text-xs mt-3 pt-3 border-t" style={{ borderColor: "oklch(0.93 0.006 80)", color: "oklch(0.65 0.012 65)" }}>
+              {managerScore !== null
+                ? "Final score = Self × 20% + Peer × 30% + Manager × 50%"
+                : "Final score = Self × 20% + Peer × 80% (no manager evaluation)"
+              }
+              {(selfScore === null || peerManagerScore === null) && " (partial — some evaluations pending)"}
+            </p>
+          </>
         )}
-
-        <p className="text-xs mt-3 pt-3 border-t" style={{ borderColor: "oklch(0.93 0.006 80)", color: "oklch(0.65 0.012 65)" }}>
-          {managerScore !== null
-            ? "Final score = Self × 20% + Peer × 30% + Manager × 50%"
-            : "Final score = Self × 20% + Peer × 80% (no manager evaluation)"
-          }
-          {(selfScore === null || peerManagerScore === null) && " (partial — some evaluations pending)"}
-        </p>
       </div>
 
       {/* Per-category breakdown */}
       <div className="space-y-3">
         <h3 className="text-sm font-semibold" style={{ color: "oklch(0.32 0.012 65)" }}>Category Breakdown</h3>
 
-        <CategoryTable
-          categories={(result.self?.categoryScores as any[]) ?? []}
-          label="Self Evaluation"
-          icon={<User size={13} />}
-          color="oklch(0.42 0.18 255)"
-          totalAvg={result.self?.totalAvg ?? null}
-        />
-
-        <CategoryTable
-          categories={combinedCats}
-          label="Peer & Manager Evaluations (weighted avg)"
-          icon={<Users size={13} />}
-          color="oklch(0.42 0.15 65)"
-          totalAvg={peerManagerScore}
-        />
-
-        {(result.contractor?.categoryScores as any[])?.length > 0 && (
+        {isContractor ? (
+          /* Contractor: show only contractor evaluation categories */
           <CategoryTable
             categories={(result.contractor?.categoryScores as any[]) ?? []}
-            label="Contractor Evaluations (avg)"
+            label="Peer Evaluations (avg)"
             icon={<ClipboardList size={13} />}
             color="oklch(0.42 0.15 300)"
             totalAvg={contractorScore}
           />
+        ) : (
+          /* Regular employee: self + peer/manager breakdown */
+          <>
+            <CategoryTable
+              categories={(result.self?.categoryScores as any[]) ?? []}
+              label="Self Evaluation"
+              icon={<User size={13} />}
+              color="oklch(0.42 0.18 255)"
+              totalAvg={result.self?.totalAvg ?? null}
+            />
+            <CategoryTable
+              categories={combinedCats}
+              label="Peer & Manager Evaluations (weighted avg)"
+              icon={<Users size={13} />}
+              color="oklch(0.42 0.15 65)"
+              totalAvg={peerManagerScore}
+            />
+          </>
         )}
       </div>
     </div>

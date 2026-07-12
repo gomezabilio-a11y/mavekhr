@@ -832,6 +832,11 @@ export async function getComputedEvaluationResults(employeeId: number) {
 
   if (tasks.length === 0) return [];
 
+  // Determine if this employee is a contractor (employmentType === 'contract')
+  const employeeRow = await db.select().from(employees)
+    .where(eq(employees.id, employeeId)).limit(1);
+  const isContractor = employeeRow[0]?.employmentType === 'contract';
+
   const cycleIds = Array.from(new Set(tasks.map(t => t.cycleId)));
   const cycles = await db.select().from(evaluationCycles)
     .where(inArray(evaluationCycles.id, cycleIds));
@@ -845,10 +850,9 @@ export async function getComputedEvaluationResults(employeeId: number) {
     const selfTasks = cycleTasks.filter(t => t.type === "self" && t.status === "completed");
     // Manager group: type="downward" (manager evaluating direct report)
     const managerTasks = cycleTasks.filter(t => t.type === "downward" && t.status === "completed");
-    // Peer group: type="peer" | "manager" (upward eval counts as peer for the evaluatee/manager) | "contractor"
-    // Note: type="contractor" is handled separately below for contractor-specific scoring
+    // Peer group: type="peer" | "manager" (upward eval counts as peer for the evaluatee/manager)
     const peerTasks = cycleTasks.filter(t => (t.type === "peer" || t.type === "manager") && t.status === "completed");
-    // Contractor: type === contractor (evaluated by anyone)
+    // Contractor: type === contractor (evaluated by peers, no self-eval)
     const contractorTasks = cycleTasks.filter(t => t.type === "contractor" && t.status === "completed");
 
     // Helper: compute average KPI scores per category for a list of tasks
@@ -906,33 +910,36 @@ export async function getComputedEvaluationResults(employeeId: number) {
     const managerResult = await computeScoresForTasks(managerTasks);
     const contractorResult = await computeScoresForTasks(contractorTasks);
 
-    // Weighted final score rules:
-    //   - Self is always 20% when present
-    //   - External (peer+manager) fills the remaining 80%:
-    //       • Both peer AND manager present → peer 30%, manager 50%  (total 80%)
-    //       • Only peer present (no manager/downward eval) → peer 80%
-    //       • Only manager present (no peer) → manager 80%
-    //   - If self is absent, external scores fill 100% using the same peer/manager split
+    // Final score calculation:
+    //   Contractor: finalScore = simple average of all contractor evaluations (no self)
+    //   Regular employee:
+    //     - Self always 20% when present
+    //     - External fills remaining 80%:
+    //         • Both peer AND manager → peer 30%, manager 50%
+    //         • Only peer (no downward eval) → peer 80%
+    //         • Only manager → manager 80%
     let finalScore: number | null = null;
     const hasSelf = selfResult.totalAvg !== null;
     const hasPeer = peerResult.totalAvg !== null;
     const hasManager = managerResult.totalAvg !== null;
-    if (hasSelf || hasPeer || hasManager) {
+    const hasContractor = contractorResult.totalAvg !== null;
+
+    if (isContractor) {
+      // Contractor: final score is simply the average of all contractor evaluations
+      finalScore = hasContractor ? contractorResult.totalAvg : null;
+    } else if (hasSelf || hasPeer || hasManager) {
       let weightedSum = 0;
       // Self: fixed 20% when present
       const selfW = hasSelf ? 0.2 : 0;
       if (hasSelf) weightedSum += selfResult.totalAvg! * selfW;
       // External: fills remaining (1 - selfW) = 0.8 (or 1.0 if no self)
-      const externalTotal = 1 - selfW; // 0.8 when self present, 1.0 when absent
+      const externalTotal = 1 - selfW;
       if (hasPeer && hasManager) {
-        // Split external 0.8 as peer 3/8, manager 5/8 (preserving 30:50 ratio)
         weightedSum += peerResult.totalAvg!    * externalTotal * (3 / 8);
         weightedSum += managerResult.totalAvg! * externalTotal * (5 / 8);
       } else if (hasPeer) {
-        // No manager → peer takes full external weight
         weightedSum += peerResult.totalAvg! * externalTotal;
       } else if (hasManager) {
-        // No peer → manager takes full external weight
         weightedSum += managerResult.totalAvg! * externalTotal;
       }
       finalScore = weightedSum;
@@ -943,6 +950,7 @@ export async function getComputedEvaluationResults(employeeId: number) {
       period: cycle.period,
       status: cycle.status,
       closeDate: cycle.closeDate,
+      isContractor,
       self: selfResult,
       peer: peerResult,
       manager: managerResult,

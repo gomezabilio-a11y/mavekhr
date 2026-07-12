@@ -25,7 +25,7 @@ function ScoreButtons({ value, onChange, disabled }: {
   onChange: (v: number) => void;
   disabled?: boolean;
 }) {
-  const labels = ["", "Strongly Disagree", "Disagree", "Neutral", "Agree", "Strongly Agree"];
+  const labels = ["", "Needs Significant Improvement", "Needs Improvement", "Meets Expectations", "Exceeds Expectations", "Outstanding"];
   return (
     <div className="flex items-center gap-1.5 flex-wrap">
       {[1, 2, 3, 4, 5].map(n => (
