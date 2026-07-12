@@ -326,6 +326,15 @@ export async function bulkCreateEvaluationTasks(tasks: Array<typeof evaluationTa
 export async function deleteEvaluationTask(id: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
+  // Delete associated kpi_responses first (via evaluation_responses), then the task itself
+  const responses = await db.select({ id: evaluationResponses.id })
+    .from(evaluationResponses)
+    .where(eq(evaluationResponses.taskId, id));
+  if (responses.length > 0) {
+    const responseIds = responses.map(r => r.id);
+    await db.delete(kpiResponses).where(inArray(kpiResponses.responseId, responseIds));
+    await db.delete(evaluationResponses).where(inArray(evaluationResponses.id, responseIds));
+  }
   await db.delete(evaluationTasks).where(eq(evaluationTasks.id, id));
 }
 

@@ -423,15 +423,13 @@ export default function AdminEvalCycles() {
                                     <AlertCircle size={14} style={{ color: "oklch(0.72 0.006 80)" }} />
                                   )}
                                   <span className="text-xs" style={{ color: "oklch(0.65 0.012 65)" }}>{task.status}</span>
-                                  {task.status !== "completed" && (
-                                    <button
-                                      onClick={() => setDeleteTaskConfirm(task.id)}
-                                      className="p-1 rounded hover:bg-red-50 transition-colors"
-                                      title="Remove task"
-                                    >
-                                      <X size={12} style={{ color: "oklch(0.62 0.18 25)" }} />
-                                    </button>
-                                  )}
+                                  <button
+                                    onClick={() => setDeleteTaskConfirm(task.id)}
+                                    className="p-1 rounded hover:bg-red-50 transition-colors"
+                                    title={task.status === "completed" ? "Remove completed task (will delete response data)" : "Remove task"}
+                                  >
+                                    <X size={12} style={{ color: "oklch(0.62 0.18 25)" }} />
+                                  </button>
                                 </div>
                               </div>
                             );
@@ -892,7 +890,16 @@ export default function AdminEvalCycles() {
           <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm text-center">
             <X size={32} className="mx-auto mb-3" style={{ color: "oklch(0.52 0.18 25)" }} />
             <p className="font-semibold mb-1" style={{ color: "oklch(0.22 0.012 65)" }}>Remove Task?</p>
-            <p className="text-sm mb-4" style={{ color: "oklch(0.55 0.012 65)" }}>This evaluation task will be removed from the cycle.</p>
+            {(() => {
+              const task = tasks.find((t: any) => t.id === deleteTaskConfirm) as any;
+              return task?.status === "completed" ? (
+                <p className="text-sm mb-4" style={{ color: "oklch(0.52 0.18 25)" }}>
+                  This task is <strong>completed</strong>. Removing it will permanently delete the submitted evaluation data.
+                </p>
+              ) : (
+                <p className="text-sm mb-4" style={{ color: "oklch(0.55 0.012 65)" }}>This evaluation task will be removed from the cycle.</p>
+              );
+            })()}
             <div className="flex gap-3">
               <button onClick={() => setDeleteTaskConfirm(null)} className="flex-1 py-2 rounded-lg text-sm border" style={{ borderColor: "oklch(0.88 0.006 80)" }}>
                 Cancel
