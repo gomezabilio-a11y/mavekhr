@@ -906,19 +906,36 @@ export async function getComputedEvaluationResults(employeeId: number) {
     const managerResult = await computeScoresForTasks(managerTasks);
     const contractorResult = await computeScoresForTasks(contractorTasks);
 
-    // Weighted final score: self 20%, peer 30%, manager 50%
+    // Weighted final score rules:
+    //   - Self is always 20% when present
+    //   - External (peer+manager) fills the remaining 80%:
+    //       • Both peer AND manager present → peer 30%, manager 50%  (total 80%)
+    //       • Only peer present (no manager/downward eval) → peer 80%
+    //       • Only manager present (no peer) → manager 80%
+    //   - If self is absent, external scores fill 100% using the same peer/manager split
     let finalScore: number | null = null;
     const hasSelf = selfResult.totalAvg !== null;
     const hasPeer = peerResult.totalAvg !== null;
     const hasManager = managerResult.totalAvg !== null;
-
     if (hasSelf || hasPeer || hasManager) {
       let weightedSum = 0;
-      let totalWeight = 0;
-      if (hasSelf) { weightedSum += selfResult.totalAvg! * 0.2; totalWeight += 0.2; }
-      if (hasPeer) { weightedSum += peerResult.totalAvg! * 0.3; totalWeight += 0.3; }
-      if (hasManager) { weightedSum += managerResult.totalAvg! * 0.5; totalWeight += 0.5; }
-      finalScore = totalWeight > 0 ? weightedSum / totalWeight : null;
+      // Self: fixed 20% when present
+      const selfW = hasSelf ? 0.2 : 0;
+      if (hasSelf) weightedSum += selfResult.totalAvg! * selfW;
+      // External: fills remaining (1 - selfW) = 0.8 (or 1.0 if no self)
+      const externalTotal = 1 - selfW; // 0.8 when self present, 1.0 when absent
+      if (hasPeer && hasManager) {
+        // Split external 0.8 as peer 3/8, manager 5/8 (preserving 30:50 ratio)
+        weightedSum += peerResult.totalAvg!    * externalTotal * (3 / 8);
+        weightedSum += managerResult.totalAvg! * externalTotal * (5 / 8);
+      } else if (hasPeer) {
+        // No manager → peer takes full external weight
+        weightedSum += peerResult.totalAvg! * externalTotal;
+      } else if (hasManager) {
+        // No peer → manager takes full external weight
+        weightedSum += managerResult.totalAvg! * externalTotal;
+      }
+      finalScore = weightedSum;
     }
 
     results.push({

@@ -315,7 +315,10 @@ function CycleDetail({ result, onBack }: { result: any; onBack: () => void }) {
         )}
 
         <p className="text-xs mt-3 pt-3 border-t" style={{ borderColor: "oklch(0.93 0.006 80)", color: "oklch(0.65 0.012 65)" }}>
-          Final score = Self × 20% + Peer × 30% + Manager × 50%
+          {managerScore !== null
+            ? "Final score = Self × 20% + Peer × 30% + Manager × 50%"
+            : "Final score = Self × 20% + Peer × 80% (no manager evaluation)"
+          }
           {(selfScore === null || peerManagerScore === null) && " (partial — some evaluations pending)"}
         </p>
       </div>
