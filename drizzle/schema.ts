@@ -179,7 +179,7 @@ export const employeeDocuments = mysqlTable("employee_documents", {
   employeeId: int("employeeId").notNull(),
   name: varchar("name", { length: 256 }).notNull(),
   fileUrl: text("fileUrl"),
-  fileType: varchar("fileType", { length: 16 }).default("PDF"),
+  fileType: varchar("fileType", { length: 64 }).default("PDF"),
   issueDate: date("issueDate"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
