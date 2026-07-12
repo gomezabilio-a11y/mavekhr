@@ -120,3 +120,20 @@
 - [x] Build Performance Results page: self (20%), peer (30%), manager (50%) weighted final score
 - [x] Per-category breakdown for self/peer/manager/contractor evaluations
 - [x] Add computedResults tRPC procedure that aggregates scores from evaluation_responses
+
+## Downward Evaluation Feature
+- [x] DB schema: downward_eval added to evaluationForms.formType enum, downward added to evaluationTasks.type enum
+- [x] DB migration (0009_tranquil_thunderbolt.sql) applied
+- [x] downward_eval form seeded in DB (id: 150001) by copying peer form with all 8 categories and KPIs
+- [x] routers.ts: downward added to task type enums, downward_eval added to formType enum
+- [x] AdminEvalCycles.tsx: TaskType union includes downward, TASK_TYPE_LABELS/COLORS updated
+- [x] AdminEvalCycles.tsx: selectedDownwardIds state added
+- [x] AdminEvalCycles.tsx: resetAssignState clears selectedDownwardIds
+- [x] AdminEvalCycles.tsx: handleEditParticipant pre-populates selectedDownwardIds from existing downward tasks
+- [x] AdminEvalCycles.tsx: handleAssignConfirm creates downward tasks for manager participants
+- [x] AdminEvalCycles.tsx: Assign panel step 2 shows Downward Evaluatees section (only when participant isManager=true)
+- [x] AdminEvalCycles.tsx: Summary section shows downward evaluation count
+- [x] PeriodicEvaluation.tsx: FormType union includes downward_eval
+- [x] PeriodicEvaluation.tsx: getFormType maps type="downward" → "downward_eval"
+- [x] PeriodicEvaluation.tsx: typeLabels/typeColors/typeIcons include downward
+- [x] server/db.ts: getComputedEvaluationResults classifies type="downward" as manager group (50%), type="peer"|"manager" as peer group (30%)

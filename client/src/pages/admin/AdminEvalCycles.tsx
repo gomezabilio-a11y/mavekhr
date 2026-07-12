@@ -9,7 +9,7 @@ import {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type CycleStatus = "open" | "closed" | "upcoming";
-type TaskType = "self" | "peer" | "manager" | "contractor" | "upward";
+type TaskType = "self" | "peer" | "manager" | "contractor" | "upward" | "downward";
 
 type CycleForm = {
   period: string;
@@ -37,6 +37,7 @@ const TASK_TYPE_LABELS: Record<TaskType, string> = {
   manager: "Manager",
   contractor: "Contractor",
   upward: "Upward",
+  downward: "Downward",
 };
 
 const TASK_TYPE_COLORS: Record<TaskType, { bg: string; text: string }> = {
@@ -45,6 +46,7 @@ const TASK_TYPE_COLORS: Record<TaskType, { bg: string; text: string }> = {
   manager:    { bg: "oklch(0.93 0.06 30)", text: "oklch(0.45 0.15 30)" },
   contractor: { bg: "oklch(0.93 0.04 65)", text: "oklch(0.52 0.12 65)" },
   upward:     { bg: "oklch(0.92 0.08 320)", text: "oklch(0.42 0.18 320)" },
+  downward:   { bg: "oklch(0.92 0.06 200)", text: "oklch(0.42 0.15 200)" },
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -62,6 +64,7 @@ export default function AdminEvalCycles() {
   const [selectedPeerIds, setSelectedPeerIds] = useState<number[]>([]);
   const [selectedContractorIds, setSelectedContractorIds] = useState<number[]>([]);
   const [selectedManagerId, setSelectedManagerId] = useState<number | null>(null);
+  const [selectedDownwardIds, setSelectedDownwardIds] = useState<number[]>([]);
   const [deleteTaskConfirm, setDeleteTaskConfirm] = useState<number | null>(null);
   const [editParticipantId, setEditParticipantId] = useState<number | null>(null); // participantId being edited
 
@@ -134,6 +137,7 @@ export default function AdminEvalCycles() {
     setSelectedPeerIds([]);
     setSelectedContractorIds([]);
     setSelectedManagerId(null);
+    setSelectedDownwardIds([]);
     setEditParticipantId(null);
   }
 
@@ -147,11 +151,15 @@ export default function AdminEvalCycles() {
       .filter(t => t.type === "contractor")
       .map(t => t.evaluateeId);
     const managerTask = evalTasks.find(t => t.type === "manager");
+    const downwardIds = evalTasks
+      .filter(t => t.type === "downward")
+      .map(t => t.evaluateeId);
     setEditParticipantId(participantId);
     setSelectedEvaluateeId(participantId);
     setSelectedPeerIds(peerIds);
     setSelectedContractorIds(contractorIds);
     setSelectedManagerId(managerTask ? managerTask.evaluateeId : null);
+    setSelectedDownwardIds(downwardIds);
     setAssignStep("select_evaluators");
     setShowAssignPanel(true);
   }
@@ -208,6 +216,12 @@ export default function AdminEvalCycles() {
       newTasks.push({ evaluatorId: selectedEvaluateeId, evaluateeId: selectedManagerId, type: "manager" });
     }
 
+    // Downward evaluations: manager evaluates direct reports
+    if (participant.isManager) {
+      for (const downwardId of selectedDownwardIds) {
+        newTasks.push({ evaluatorId: selectedEvaluateeId, evaluateeId: downwardId, type: "downward" });
+      }
+    }
 
     bulkCreateTasksMut.mutate({ cycleId: selectedCycleId, tasks: newTasks });
   }
@@ -697,6 +711,48 @@ export default function AdminEvalCycles() {
                       )}
                     </div>
 
+                    {/* Downward evaluatees — only shown when participant isManager=true */}
+                    {!isContractor && participant?.isManager && (() => {
+                      const downwardCandidates = employees.filter(e => e.id !== selectedEvaluateeId && e.status === "active" && e.employmentType !== "contract");
+                      return (
+                        <div>
+                          <p className="text-xs font-semibold mb-2" style={{ color: "oklch(0.45 0.012 65)" }}>
+                            Downward Evaluatees — select employees to evaluate (manager only)
+                          </p>
+                          <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                            {downwardCandidates.map(emp => {
+                              const isSelected = selectedDownwardIds.includes(emp.id);
+                              return (
+                                <button
+                                  key={emp.id}
+                                  onClick={() => setSelectedDownwardIds(prev =>
+                                    isSelected ? prev.filter(id => id !== emp.id) : [...prev, emp.id]
+                                  )}
+                                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg border text-left transition-all"
+                                  style={{
+                                    borderColor: isSelected ? "oklch(0.62 0.15 200)" : "oklch(0.90 0.006 80)",
+                                    background: isSelected ? "oklch(0.97 0.04 200)" : "white",
+                                  }}
+                                >
+                                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+                                    style={{ background: "oklch(0.52 0.15 200)" }}>
+                                    {emp.firstName[0]}{emp.lastName[0]}
+                                  </div>
+                                  <span className="text-sm flex-1 truncate" style={{ color: "oklch(0.22 0.012 65)" }}>
+                                    {emp.firstName} {emp.lastName}
+                                  </span>
+                                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                                    <span className="text-xs" style={{ color: "oklch(0.65 0.012 65)" }}>{emp.position}</span>
+                                    {isSelected && <CheckCircle2 size={14} style={{ color: "oklch(0.52 0.15 200)" }} />}
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })()}
+
                     {/* Manager evaluatee */}
                     {!isContractor && (
                       <div>
@@ -751,8 +807,9 @@ export default function AdminEvalCycles() {
                       {selectedPeerIds.length > 0 && <p style={{ color: "oklch(0.55 0.012 65)" }}>• {selectedPeerIds.length} Peer evaluation(s)</p>}
                       {selectedContractorIds.length > 0 && <p style={{ color: "oklch(0.55 0.012 65)" }}>• {selectedContractorIds.length} Contractor evaluation(s)</p>}
                       {selectedManagerId && <p style={{ color: "oklch(0.55 0.012 65)" }}>• 1 Manager evaluation</p>}
+                      {participant?.isManager && selectedDownwardIds.length > 0 && <p style={{ color: "oklch(0.55 0.012 65)" }}>• {selectedDownwardIds.length} Downward evaluation(s)</p>}
 
-                      {!isContractor && selectedPeerIds.length === 0 && selectedContractorIds.length === 0 && !selectedManagerId && <p style={{ color: "oklch(0.72 0.12 25)" }}>⚠ Only self-evaluation will be created</p>}
+                      {!isContractor && selectedPeerIds.length === 0 && selectedContractorIds.length === 0 && !selectedManagerId && (!participant?.isManager || selectedDownwardIds.length === 0) && <p style={{ color: "oklch(0.72 0.12 25)" }}>⚠ Only self-evaluation will be created</p>}
                     </div>
                   </div>
                 );

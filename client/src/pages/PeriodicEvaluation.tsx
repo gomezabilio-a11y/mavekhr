@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type FormType = "self_regular" | "self_manager" | "peer" | "upward_eval" | "contractor";
+type FormType = "self_regular" | "self_manager" | "peer" | "upward_eval" | "contractor" | "downward_eval";
 
 interface KpiScore {
   kpiId: number;
@@ -404,6 +404,7 @@ function TaskCard({ task, employees, onSelect, isSelected }: {
     manager: "Manager Evaluation",
     contractor: "Contractor Evaluation",
     upward: "Upward Evaluation",
+    downward: "Downward Evaluation",
   };
   const typeColors: Record<string, string> = {
     self: "oklch(0.42 0.18 255)",
@@ -411,6 +412,7 @@ function TaskCard({ task, employees, onSelect, isSelected }: {
     manager: "oklch(0.42 0.15 25)",
     contractor: "oklch(0.42 0.15 300)",
     upward: "oklch(0.42 0.18 320)",
+    downward: "oklch(0.42 0.15 200)",
   };
   const typeIcons: Record<string, React.ReactNode> = {
     self: <User size={13} />,
@@ -418,6 +420,7 @@ function TaskCard({ task, employees, onSelect, isSelected }: {
     manager: <Briefcase size={13} />,
     contractor: <ClipboardList size={13} />,
     upward: <Users size={13} />,
+    downward: <Users size={13} />,
   };
   const color = typeColors[task.type] ?? "oklch(0.55 0.012 65)";
 
@@ -473,6 +476,7 @@ export default function PeriodicEvaluation() {
     if (task.type === "manager") return "upward_eval" as FormType; // employee evaluating manager uses upward_eval form
     if (task.type === "contractor") return "contractor";
     if (task.type === "upward") return "upward_eval" as FormType;
+    if (task.type === "downward") return "downward_eval" as FormType;
     return "peer";
   }
 
