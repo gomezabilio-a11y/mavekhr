@@ -826,6 +826,7 @@ export async function getComputedEvaluationResults(employeeId: number) {
   if (!db) return [];
 
   // Get all cycles that have tasks where this employee is the evaluatee
+  // Exclude upward evaluations (type=manager = employee evaluating their manager)
   const tasks = await db.select().from(evaluationTasks)
     .where(eq(evaluationTasks.evaluateeId, employeeId));
 
@@ -835,15 +836,29 @@ export async function getComputedEvaluationResults(employeeId: number) {
   const cycles = await db.select().from(evaluationCycles)
     .where(inArray(evaluationCycles.id, cycleIds));
 
+  // Load all evaluators to check isManager flag
+  const evaluatorIds = Array.from(new Set(tasks.map(t => t.evaluatorId)));
+  const evaluatorRows = await db.select().from(employees)
+    .where(inArray(employees.id, evaluatorIds));
+  const evaluatorMap: Record<number, typeof evaluatorRows[0]> = {};
+  evaluatorRows.forEach(e => { evaluatorMap[e.id] = e; });
+
   const results = [];
 
   for (const cycle of cycles) {
     const cycleTasks = tasks.filter(t => t.cycleId === cycle.id);
 
-    // Group tasks by type
+    // Self: evaluator == evaluatee
     const selfTasks = cycleTasks.filter(t => t.type === "self" && t.status === "completed");
-    const peerTasks = cycleTasks.filter(t => t.type === "peer" && t.status === "completed");
-    const managerTasks = cycleTasks.filter(t => t.type === "manager" && t.status === "completed");
+    // Completed tasks where someone else evaluated this employee (not self)
+    // type=manager means an employee evaluated their manager (upward eval) —
+    // from the manager/evaluatee's perspective this counts as a peer evaluation
+    const externalCompleted = cycleTasks.filter(t => t.type !== "self" && t.status === "completed");
+    // Manager downward: evaluator has isManager=true
+    const managerTasks = externalCompleted.filter(t => evaluatorMap[t.evaluatorId]?.isManager === true);
+    // Peer: evaluator is NOT a manager
+    const peerTasks = externalCompleted.filter(t => !evaluatorMap[t.evaluatorId]?.isManager);
+    // Contractor: type === contractor (evaluated by anyone)
     const contractorTasks = cycleTasks.filter(t => t.type === "contractor" && t.status === "completed");
 
     // Helper: compute average KPI scores per category for a list of tasks

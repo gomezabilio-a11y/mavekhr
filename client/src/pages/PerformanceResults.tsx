@@ -1,11 +1,13 @@
 /**
  * PerformanceResults.tsx — Performance Evaluation Results
- * Shows self (20%), peer (30%), manager (50%) scores per category and weighted final score.
+ * Shows self (20%), peer+manager combined (80%) scores per category.
+ * Peer = non-manager evaluators (30% of final), Manager = manager evaluators (50% of final).
+ * Combined Peer+Manager section shows weighted average of both.
  */
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useState } from "react";
-import { Star, Award, Loader2, User, Users, Briefcase, ClipboardList, ChevronDown, ChevronUp } from "lucide-react";
+import { Star, Award, Loader2, User, Users, ChevronDown, ChevronUp, ClipboardList } from "lucide-react";
 
 // Score → color
 function scoreColor(score: number | null) {
@@ -95,6 +97,26 @@ function CategoryTable({ categories, label, icon, color }: {
   );
 }
 
+// Merge two category score arrays by name, applying weights
+function mergeCategories(
+  peerCats: Array<{ name: string; avg: number; count: number }>,
+  managerCats: Array<{ name: string; avg: number; count: number }>,
+  peerWeight: number,
+  managerWeight: number
+): Array<{ name: string; avg: number; count: number }> {
+  const allNames = Array.from(new Set([...peerCats.map(c => c.name), ...managerCats.map(c => c.name)]));
+  return allNames.map(name => {
+    const p = peerCats.find(c => c.name === name);
+    const m = managerCats.find(c => c.name === name);
+    if (p && m) {
+      const totalW = peerWeight + managerWeight;
+      return { name, avg: (p.avg * peerWeight + m.avg * managerWeight) / totalW, count: p.count + m.count };
+    }
+    if (p) return { ...p };
+    return { ...m! };
+  });
+}
+
 export default function PerformanceResults() {
   const { user } = useAuth();
   const { data: emp } = trpc.employee.me.useQuery(undefined, { enabled: !!user });
@@ -142,6 +164,21 @@ export default function PerformanceResults() {
   const contractorScore = selected?.contractor?.totalAvg ?? null;
   const finalScore = selected?.finalScore ?? null;
 
+  // Combined Peer+Manager weighted average (peer 30% of 80% = 37.5%, manager 50% of 80% = 62.5%)
+  // But displayed as a single "Peer & Manager" score weighted by peer:manager = 3:5
+  const peerManagerScore: number | null = (() => {
+    if (peerScore !== null && managerScore !== null) {
+      return (peerScore * 3 + managerScore * 5) / 8;
+    }
+    if (peerScore !== null) return peerScore;
+    if (managerScore !== null) return managerScore;
+    return null;
+  })();
+
+  const peerCats: Array<{ name: string; avg: number; count: number }> = (selected?.peer?.categoryScores as any[]) ?? [];
+  const managerCats: Array<{ name: string; avg: number; count: number }> = (selected?.manager?.categoryScores as any[]) ?? [];
+  const combinedCats = mergeCategories(peerCats, managerCats, 3, 5);
+
   return (
     <div className="p-6 space-y-6 max-w-3xl">
       {/* Header */}
@@ -150,28 +187,30 @@ export default function PerformanceResults() {
           Performance Results
         </h2>
         <p className="text-sm" style={{ color: "oklch(0.55 0.012 65)" }}>
-          Evaluation breakdown by self, peer, and manager assessments
+          Evaluation breakdown by self and peer &amp; manager assessments
         </p>
       </div>
 
-      {/* Cycle selector */}
-      {(results as any[]).length > 1 && (
-        <div className="flex gap-2 flex-wrap">
-          {(results as any[]).map((r: any, i: number) => (
-            <button
-              key={r.cycleId}
-              onClick={() => setSelectedIdx(i)}
-              className="px-3 py-1.5 rounded-lg text-sm font-medium transition-all"
-              style={{
-                background: i === selectedIdx ? "oklch(0.42 0.18 255)" : "oklch(0.95 0.006 80)",
-                color: i === selectedIdx ? "white" : "oklch(0.45 0.012 65)",
-              }}
-            >
-              {r.period}
-            </button>
-          ))}
-        </div>
-      )}
+      {/* Cycle tabs */}
+      <div className="flex gap-2 flex-wrap">
+        {(results as any[]).map((r: any, i: number) => (
+          <button
+            key={r.cycleId}
+            onClick={() => setSelectedIdx(i)}
+            className="px-4 py-2 rounded-lg text-sm font-medium transition-all border"
+            style={{
+              background: i === selectedIdx ? "oklch(0.42 0.18 255)" : "white",
+              color: i === selectedIdx ? "white" : "oklch(0.45 0.012 65)",
+              borderColor: i === selectedIdx ? "oklch(0.42 0.18 255)" : "oklch(0.88 0.006 80)",
+            }}
+          >
+            {r.period}
+            <span className="ml-2 text-xs opacity-70">
+              {r.status === "closed" ? "Final" : "Open"}
+            </span>
+          </button>
+        ))}
+      </div>
 
       {selected && (
         <>
@@ -200,34 +239,30 @@ export default function PerformanceResults() {
               </div>
             </div>
 
-            {/* Score breakdown row */}
-            <div className="grid grid-cols-3 gap-3 pt-4 border-t" style={{ borderColor: "oklch(0.93 0.006 80)" }}>
-              <div className="text-center">
+            {/* Score breakdown: Self 20% | Peer & Manager 80% */}
+            <div className="grid grid-cols-2 gap-4 pt-4 border-t" style={{ borderColor: "oklch(0.93 0.006 80)" }}>
+              <div className="text-center p-3 rounded-lg" style={{ background: "oklch(0.97 0.006 255)" }}>
                 <div className="flex items-center justify-center gap-1 mb-1">
                   <User size={12} style={{ color: "oklch(0.42 0.18 255)" }} />
                   <span className="text-xs font-medium" style={{ color: "oklch(0.42 0.18 255)" }}>Self (20%)</span>
                 </div>
-                <p className="text-xl font-bold" style={{ color: scoreColor(selfScore) }}>
+                <p className="text-2xl font-bold" style={{ color: scoreColor(selfScore) }}>
                   {selfScore !== null ? selfScore.toFixed(2) : "—"}
                 </p>
               </div>
-              <div className="text-center">
+              <div className="text-center p-3 rounded-lg" style={{ background: "oklch(0.97 0.006 65)" }}>
                 <div className="flex items-center justify-center gap-1 mb-1">
-                  <Users size={12} style={{ color: "oklch(0.52 0.15 65)" }} />
-                  <span className="text-xs font-medium" style={{ color: "oklch(0.52 0.15 65)" }}>Peer (30%)</span>
+                  <Users size={12} style={{ color: "oklch(0.42 0.15 65)" }} />
+                  <span className="text-xs font-medium" style={{ color: "oklch(0.42 0.15 65)" }}>Peer &amp; Manager (80%)</span>
                 </div>
-                <p className="text-xl font-bold" style={{ color: scoreColor(peerScore) }}>
-                  {peerScore !== null ? peerScore.toFixed(2) : "—"}
+                <p className="text-2xl font-bold" style={{ color: scoreColor(peerManagerScore) }}>
+                  {peerManagerScore !== null ? peerManagerScore.toFixed(2) : "—"}
                 </p>
-              </div>
-              <div className="text-center">
-                <div className="flex items-center justify-center gap-1 mb-1">
-                  <Briefcase size={12} style={{ color: "oklch(0.42 0.15 25)" }} />
-                  <span className="text-xs font-medium" style={{ color: "oklch(0.42 0.15 25)" }}>Manager (50%)</span>
-                </div>
-                <p className="text-xl font-bold" style={{ color: scoreColor(managerScore) }}>
-                  {managerScore !== null ? managerScore.toFixed(2) : "—"}
-                </p>
+                {peerScore !== null && managerScore !== null && (
+                  <p className="text-xs mt-0.5" style={{ color: "oklch(0.65 0.012 65)" }}>
+                    Peer {peerScore.toFixed(2)} · Mgr {managerScore.toFixed(2)}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -242,7 +277,7 @@ export default function PerformanceResults() {
             {/* Weight formula note */}
             <p className="text-xs mt-3 pt-3 border-t" style={{ borderColor: "oklch(0.93 0.006 80)", color: "oklch(0.65 0.012 65)" }}>
               Final score = Self × 20% + Peer × 30% + Manager × 50%
-              {(selfScore === null || peerScore === null || managerScore === null) && " (partial — some evaluations pending)"}
+              {(selfScore === null || peerManagerScore === null) && " (partial — some evaluations pending)"}
             </p>
           </div>
 
@@ -258,17 +293,10 @@ export default function PerformanceResults() {
             />
 
             <CategoryTable
-              categories={(selected.peer?.categoryScores as any[]) ?? []}
-              label="Peer Evaluations (avg)"
+              categories={combinedCats}
+              label="Peer & Manager Evaluations (weighted avg)"
               icon={<Users size={13} />}
-              color="oklch(0.52 0.15 65)"
-            />
-
-            <CategoryTable
-              categories={(selected.manager?.categoryScores as any[]) ?? []}
-              label="Manager Evaluation"
-              icon={<Briefcase size={13} />}
-              color="oklch(0.42 0.15 25)"
+              color="oklch(0.42 0.15 65)"
             />
 
             {(selected.contractor?.categoryScores as any[])?.length > 0 && (
