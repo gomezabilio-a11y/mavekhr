@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-type FormType = "self_regular" | "self_manager" | "peer" | "contractor" | "upward_eval";
+type FormType = "self_regular" | "self_manager" | "peer" | "contractor" | "upward_eval" | "downward_eval";
 
 const FORM_TYPES: {
   type: FormType;
@@ -63,6 +63,15 @@ const FORM_TYPES: {
     who: "Evaluator: Employee → Manager",
     color: "oklch(0.38 0.18 320)",
     icon: <UserCheck size={16} />,
+  },
+  {
+    type: "downward_eval",
+    label: "Downward Evaluation",
+    badge: "Manager → Employee",
+    description: "매니저가 직속 직원을 평가하는 하향 평가 폼",
+    who: "Evaluator: Manager → Employee",
+    color: "oklch(0.42 0.15 200)",
+    icon: <Users size={16} />,
   },
 ];
 
@@ -894,7 +903,7 @@ export default function AdminEvalForms() {
             </h2>
           </div>
           <p className="text-xs" style={{ color: "oklch(0.60 0.012 65)" }}>
-            5 form templates — click to edit
+            6 form templates — click to edit
           </p>
         </div>
 
@@ -971,7 +980,7 @@ export default function AdminEvalForms() {
               Select a form type
             </p>
             <p className="text-sm mt-1 max-w-xs" style={{ color: "oklch(0.60 0.012 65)" }}>
-              Choose one of the 5 evaluation form templates from the left panel to start building
+              Choose one of the 6 evaluation form templates from the left panel to start building
             </p>
           </div>
         ) : !selectedForm ? (
