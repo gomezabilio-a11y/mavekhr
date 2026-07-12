@@ -46,7 +46,7 @@ const baseNavItems: NavItem[] = [
   { id: 5, label: "Financial History", icon: DollarSign, path: "/financial-history" },
   { id: 6, label: "Performance Results", icon: BarChart2, path: "/performance-results" },
   { id: 7, label: "Periodic Evaluation", icon: ClipboardList, path: "/periodic-evaluation" },
-  { id: 8, label: "Leave Management", icon: Calendar, path: "/leave-management" },
+  { id: 8, label: "Leave Management", icon: Calendar, path: "/leave-management", comingSoon: true },
   { id: 9, label: "Company Documents", icon: FileText, path: "/company-documents", comingSoon: true },
   { id: 10, label: "Training", icon: GraduationCap, path: "/training", comingSoon: true },
   { id: 11, label: "Announcements", icon: Megaphone, path: "/announcements", comingSoon: true },
@@ -98,8 +98,8 @@ export default function Layout({ children }: LayoutProps) {
   // Admin accounts can also use the Employee Portal (they are employees too)
 
   const handleComingSoon = (label: string) => {
-    toast.info(`${label} — Coming Soon`, {
-      description: "This feature is currently under development.",
+    toast.info(`This feature is not available`, {
+      description: `${label} is not currently available in this portal.`,
     });
   };
 
