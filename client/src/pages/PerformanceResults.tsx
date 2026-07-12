@@ -57,15 +57,16 @@ function ScoreBadge({ score }: { score: number | null }) {
   );
 }
 
-function CategoryTable({ categories, label, icon, color }: {
+function CategoryTable({ categories, label, icon, color, totalAvg }: {
   categories: Array<{ name: string; avg: number; count: number }>;
   label: string;
   icon: React.ReactNode;
   color: string;
+  totalAvg: number | null;
 }) {
   const [expanded, setExpanded] = useState(true);
   if (!categories || categories.length === 0) return null;
-  const total = categories.reduce((sum, c) => sum + c.avg, 0) / categories.length;
+  const total = totalAvg;
 
   return (
     <div className="rounded-xl border overflow-hidden" style={{ borderColor: "oklch(0.88 0.006 80)" }}>
@@ -323,6 +324,7 @@ function CycleDetail({ result, onBack }: { result: any; onBack: () => void }) {
           label="Self Evaluation"
           icon={<User size={13} />}
           color="oklch(0.42 0.18 255)"
+          totalAvg={result.self?.totalAvg ?? null}
         />
 
         <CategoryTable
@@ -330,6 +332,7 @@ function CycleDetail({ result, onBack }: { result: any; onBack: () => void }) {
           label="Peer & Manager Evaluations (weighted avg)"
           icon={<Users size={13} />}
           color="oklch(0.42 0.15 65)"
+          totalAvg={peerManagerScore}
         />
 
         {(result.contractor?.categoryScores as any[])?.length > 0 && (
@@ -338,6 +341,7 @@ function CycleDetail({ result, onBack }: { result: any; onBack: () => void }) {
             label="Contractor Evaluations (avg)"
             icon={<ClipboardList size={13} />}
             color="oklch(0.42 0.15 300)"
+            totalAvg={contractorScore}
           />
         )}
       </div>
