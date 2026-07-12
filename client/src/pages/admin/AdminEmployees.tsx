@@ -86,6 +86,141 @@ function ResetPasswordSection({ employeeId, employees }: { employeeId: number; e
   );
 }
 
+function BankInfoSection({ employeeId }: { employeeId: number }) {
+  const utils = trpc.useUtils();
+  const { data: bankData, isLoading } = trpc.bankInfo.adminGet.useQuery({ employeeId });
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState({
+    recipientName: "", recipientAddress: "", recipientEmail: "", recipientPhone: "",
+    bankName: "", swiftBic: "", branchName: "", bankAddress: "", accountNumber: "", ifsc: "",
+  });
+
+  useEffect(() => {
+    if (bankData) {
+      setForm({
+        recipientName: bankData.recipientName ?? "",
+        recipientAddress: bankData.recipientAddress ?? "",
+        recipientEmail: bankData.recipientEmail ?? "",
+        recipientPhone: bankData.recipientPhone ?? "",
+        bankName: bankData.bankName ?? "",
+        swiftBic: bankData.swiftBic ?? "",
+        branchName: bankData.branchName ?? "",
+        bankAddress: bankData.bankAddress ?? "",
+        accountNumber: bankData.accountNumber ?? "",
+        ifsc: bankData.ifsc ?? "",
+      });
+    }
+  }, [bankData]);
+
+  const saveMutation = trpc.bankInfo.adminUpsert.useMutation({
+    onSuccess: () => {
+      utils.bankInfo.adminGet.invalidate({ employeeId });
+      setEditing(false);
+      toast.success("Bank information saved");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const inputCls = "w-full px-3 py-2 rounded-lg border text-xs focus:outline-none focus:ring-2 focus:ring-blue-400";
+  const inputStyle = { borderColor: "oklch(0.88 0.006 80)", background: "oklch(0.97 0.006 80)", color: "oklch(0.22 0.012 65)" };
+  const labelCls = "block text-xs font-medium mb-1";
+  const labelStyle = { color: "oklch(0.45 0.012 65)" };
+
+  return (
+    <div className="border-t pt-4 mt-2" style={{ borderColor: "oklch(0.90 0.006 80)" }}>
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs font-semibold" style={{ color: "oklch(0.35 0.012 65)" }}>Bank Information</p>
+        {!editing && (
+          <button type="button" onClick={() => setEditing(true)}
+            className="text-xs underline" style={{ color: "oklch(0.42 0.18 255)" }}>
+            {bankData ? "Edit" : "Add"}
+          </button>
+        )}
+      </div>
+      {isLoading ? (
+        <p className="text-xs" style={{ color: "oklch(0.72 0.006 80)" }}>Loading...</p>
+      ) : !editing ? (
+        bankData?.bankName || bankData?.accountNumber ? (
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs" style={{ color: "oklch(0.45 0.012 65)" }}>
+            {bankData.recipientName && <div><span className="font-medium">Recipient:</span> {bankData.recipientName}</div>}
+            {bankData.bankName && <div><span className="font-medium">Bank:</span> {bankData.bankName}</div>}
+            {bankData.accountNumber && <div><span className="font-medium">Account No:</span> {bankData.accountNumber}</div>}
+            {bankData.swiftBic && <div><span className="font-medium">SWIFT/BIC:</span> {bankData.swiftBic}</div>}
+            {bankData.branchName && <div><span className="font-medium">Branch:</span> {bankData.branchName}</div>}
+            {bankData.ifsc && <div><span className="font-medium">IFSC:</span> {bankData.ifsc}</div>}
+            {bankData.recipientEmail && <div><span className="font-medium">Email:</span> {bankData.recipientEmail}</div>}
+            {bankData.recipientPhone && <div><span className="font-medium">Phone:</span> {bankData.recipientPhone}</div>}
+          </div>
+        ) : (
+          <p className="text-xs" style={{ color: "oklch(0.72 0.006 80)" }}>No bank information on file.</p>
+        )
+      ) : (
+        <div className="space-y-3">
+          <p className="text-xs font-medium" style={{ color: "oklch(0.45 0.012 65)" }}>Recipient Information</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={labelCls} style={labelStyle}>Recipient Name</label>
+              <input value={form.recipientName} onChange={e => setForm(f => ({ ...f, recipientName: e.target.value }))} className={inputCls} style={inputStyle} />
+            </div>
+            <div>
+              <label className={labelCls} style={labelStyle}>Recipient Email</label>
+              <input value={form.recipientEmail} onChange={e => setForm(f => ({ ...f, recipientEmail: e.target.value }))} className={inputCls} style={inputStyle} />
+            </div>
+            <div>
+              <label className={labelCls} style={labelStyle}>Recipient Phone</label>
+              <input value={form.recipientPhone} onChange={e => setForm(f => ({ ...f, recipientPhone: e.target.value }))} className={inputCls} style={inputStyle} />
+            </div>
+            <div className="col-span-2">
+              <label className={labelCls} style={labelStyle}>Recipient Address</label>
+              <input value={form.recipientAddress} onChange={e => setForm(f => ({ ...f, recipientAddress: e.target.value }))} className={inputCls} style={inputStyle} />
+            </div>
+          </div>
+          <p className="text-xs font-medium pt-1" style={{ color: "oklch(0.45 0.012 65)" }}>Bank Details</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={labelCls} style={labelStyle}>Bank Name</label>
+              <input value={form.bankName} onChange={e => setForm(f => ({ ...f, bankName: e.target.value }))} className={inputCls} style={inputStyle} />
+            </div>
+            <div>
+              <label className={labelCls} style={labelStyle}>Account Number</label>
+              <input value={form.accountNumber} onChange={e => setForm(f => ({ ...f, accountNumber: e.target.value }))} className={inputCls} style={inputStyle} />
+            </div>
+            <div>
+              <label className={labelCls} style={labelStyle}>SWIFT / BIC</label>
+              <input value={form.swiftBic} onChange={e => setForm(f => ({ ...f, swiftBic: e.target.value }))} className={inputCls} style={inputStyle} />
+            </div>
+            <div>
+              <label className={labelCls} style={labelStyle}>IFSC Code</label>
+              <input value={form.ifsc} onChange={e => setForm(f => ({ ...f, ifsc: e.target.value }))} className={inputCls} style={inputStyle} />
+            </div>
+            <div>
+              <label className={labelCls} style={labelStyle}>Branch Name</label>
+              <input value={form.branchName} onChange={e => setForm(f => ({ ...f, branchName: e.target.value }))} className={inputCls} style={inputStyle} />
+            </div>
+            <div className="col-span-2">
+              <label className={labelCls} style={labelStyle}>Bank Address</label>
+              <input value={form.bankAddress} onChange={e => setForm(f => ({ ...f, bankAddress: e.target.value }))} className={inputCls} style={inputStyle} />
+            </div>
+          </div>
+          <div className="flex gap-2 pt-1">
+            <button type="button" onClick={() => setEditing(false)}
+              className="flex-1 py-2 rounded-lg text-xs border" style={{ borderColor: "oklch(0.88 0.006 80)", color: "oklch(0.45 0.012 65)" }}>
+              Cancel
+            </button>
+            <button type="button"
+              disabled={saveMutation.isPending}
+              onClick={() => saveMutation.mutate({ employeeId, ...form })}
+              className="flex-1 py-2 rounded-lg text-xs font-medium text-white disabled:opacity-50"
+              style={{ background: "oklch(0.42 0.18 255)" }}>
+              {saveMutation.isPending ? "Saving..." : "Save Bank Info"}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminEmployees() {
   const [location] = useLocation();
   const [search, setSearch] = useState("");
@@ -538,6 +673,11 @@ export default function AdminEmployees() {
                   </div>
                 )}
               </div>
+
+              {/* Bank Information — only shown when editing */}
+              {editId && (
+                <BankInfoSection employeeId={editId} />
+              )}
 
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => { setShowForm(false); setEditId(null); setForm(emptyForm); }}

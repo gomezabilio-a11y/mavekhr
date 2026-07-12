@@ -784,6 +784,30 @@ export const appRouter = router({
       if (!employee) return null;
       return getBankInfoByEmployeeId(employee.id);
     }),
+    // Admin: get bank info for any employee by employeeId
+    adminGet: adminProcedure
+      .input(z.object({ employeeId: z.number() }))
+      .query(({ input }) => getBankInfoByEmployeeId(input.employeeId)),
+    // Admin: upsert bank info for any employee by employeeId
+    adminUpsert: adminProcedure
+      .input(z.object({
+        employeeId: z.number(),
+        recipientName: z.string().optional(),
+        recipientAddress: z.string().optional(),
+        recipientEmail: z.string().optional(),
+        recipientPhone: z.string().optional(),
+        bankName: z.string().optional(),
+        swiftBic: z.string().optional(),
+        branchName: z.string().optional(),
+        bankAddress: z.string().optional(),
+        accountNumber: z.string().optional(),
+        ifsc: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { employeeId, ...rest } = input;
+        await upsertBankInfo({ employeeId, ...rest, updatedAt: new Date() });
+        return { success: true };
+      }),
     upsert: protectedProcedure
       .input(z.object({
         recipientName: z.string().optional(),
