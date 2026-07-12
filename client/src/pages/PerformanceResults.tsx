@@ -58,7 +58,7 @@ function ScoreBadge({ score }: { score: number | null }) {
 }
 
 function CategoryTable({ categories, label, icon, color, totalAvg }: {
-  categories: Array<{ name: string; avg: number; count: number }>;
+  categories: Array<{ name: string; avg: number; count: number; weight?: number }>;
   label: string;
   icon: React.ReactNode;
   color: string;
@@ -86,7 +86,12 @@ function CategoryTable({ categories, label, icon, color, totalAvg }: {
           {categories.map((cat, i) => (
             <div key={i} className="px-4 py-3">
               <div className="flex items-center justify-between mb-1.5">
-                <span className="text-sm" style={{ color: "oklch(0.32 0.012 65)" }}>{cat.name}</span>
+                <span className="text-sm" style={{ color: "oklch(0.32 0.012 65)" }}>
+                  {cat.name}
+                  {cat.weight != null && cat.weight > 0 && (
+                    <span className="ml-1.5 text-xs" style={{ color: "oklch(0.65 0.012 65)" }}>({cat.weight}%)</span>
+                  )}
+                </span>
                 <ScoreBadge score={cat.avg} />
               </div>
               <ScoreBar score={cat.avg} />

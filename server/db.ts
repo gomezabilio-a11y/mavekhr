@@ -852,10 +852,10 @@ export async function getComputedEvaluationResults(employeeId: number) {
     const contractorTasks = cycleTasks.filter(t => t.type === "contractor" && t.status === "completed");
 
     // Helper: compute average KPI scores per category for a list of tasks
+    // totalAvg uses category weight (portion %) from formCategories.weight — NOT flat KPI average
     const computeScoresForTasks = async (taskList: typeof cycleTasks) => {
       if (taskList.length === 0) return { categoryScores: [] as Array<{ name: string; avg: number; count: number }>, totalAvg: null };
-      const categoryScores: Record<string, { name: string; scores: number[] }> = {};
-      let allScores: number[] = [];
+      const categoryScores: Record<string, { name: string; scores: number[]; weight: number }> = {};
 
       for (const task of taskList) {
         const response = await db!.select().from(evaluationResponses)
@@ -872,18 +872,32 @@ export async function getComputedEvaluationResults(employeeId: number) {
           const catRow = await db!.select().from(formCategories)
             .where(eq(formCategories.id, kpiRow[0].categoryId)).limit(1);
           const catName = catRow[0]?.title ?? "Unknown";
-          if (!categoryScores[catName]) categoryScores[catName] = { name: catName, scores: [] };
+          const catWeight = catRow[0]?.weight ?? 0; // e.g. 10 means 10%
+          if (!categoryScores[catName]) categoryScores[catName] = { name: catName, scores: [], weight: catWeight };
           categoryScores[catName].scores.push(kpi.score);
-          allScores.push(kpi.score);
         }
       }
 
-      const categoryAvgs = Object.entries(categoryScores).map(([name, { scores }]) => ({
+      const categoryAvgs = Object.entries(categoryScores).map(([name, { scores, weight }]) => ({
         name,
         avg: scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0,
         count: scores.length,
+        weight,
       }));
-      const totalAvg = allScores.length > 0 ? allScores.reduce((a, b) => a + b, 0) / allScores.length : null;
+
+      // Compute totalAvg using category weights (portions)
+      // If weights sum to >0, use weighted average; otherwise fall back to simple average
+      const totalWeight = categoryAvgs.reduce((sum, c) => sum + c.weight, 0);
+      let totalAvg: number | null = null;
+      if (categoryAvgs.length > 0) {
+        if (totalWeight > 0) {
+          // Weighted average: sum(categoryAvg * weight) / totalWeight
+          totalAvg = categoryAvgs.reduce((sum, c) => sum + c.avg * c.weight, 0) / totalWeight;
+        } else {
+          // Fallback: simple average of category averages
+          totalAvg = categoryAvgs.reduce((sum, c) => sum + c.avg, 0) / categoryAvgs.length;
+        }
+      }
       return { categoryScores: categoryAvgs, totalAvg };
     };
 
