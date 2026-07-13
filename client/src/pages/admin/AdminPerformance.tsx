@@ -90,10 +90,10 @@ function CycleDetail({ result, onBack, empName }: { result: any; onBack: () => v
   const contractorScore = result?.contractor?.totalAvg ?? null;
   const finalScore = result?.finalScore ?? null;
 
-  const selfCats: any[] = result?.self?.categories ?? [];
-  const peerCats: any[] = result?.peer?.categories ?? [];
-  const managerCats: any[] = result?.manager?.categories ?? [];
-  const contractorCats: any[] = result?.contractor?.categories ?? [];
+  const selfCats: any[] = result?.self?.categoryScores ?? [];
+  const peerCats: any[] = result?.peer?.categoryScores ?? [];
+  const managerCats: any[] = result?.manager?.categoryScores ?? [];
+  const contractorCats: any[] = result?.contractor?.categoryScores ?? [];
 
   const peerWeight = 3, managerWeight = 5;
   function mergeCategories(peerC: any[], managerC: any[]) {
