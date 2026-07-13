@@ -150,6 +150,40 @@ export default function MyOrganization() {
         )}
       </div>
 
+      {/* My Manager */}
+      {manager && (
+        <div className="hr-card p-5">
+          <div className="flex items-center gap-3 mb-4">
+            <Network size={16} style={{ color: "oklch(0.42 0.18 255)" }} />
+            <h3 className="text-sm font-semibold" style={{ color: "oklch(0.22 0.012 65)", fontFamily: "'DM Sans', sans-serif" }}>
+              My Manager
+            </h3>
+          </div>
+          <div
+            className="flex items-center gap-3 p-3 rounded-lg"
+            style={{
+              border: "1px solid oklch(0.88 0.006 80)",
+              background: "white",
+            }}
+          >
+            <EmployeePhoto
+              photoUrl={manager.photoUrl}
+              initials={`${manager.firstName?.[0] ?? ""}${manager.lastName?.[0] ?? ""}`}
+              size="sm"
+              bgColor="oklch(0.42 0.18 255)"
+            />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium" style={{ color: "oklch(0.22 0.012 65)" }}>
+                {manager.firstName} {manager.lastName}
+              </p>
+              <p className="text-xs mt-0.5" style={{ color: "oklch(0.55 0.012 65)" }}>
+                {manager.position}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* My Team Members */}
       {emp?.orgUnitId && (
         <div className="hr-card p-5">
