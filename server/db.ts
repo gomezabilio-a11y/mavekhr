@@ -1,4 +1,4 @@
-import { eq, desc, sql, and, asc, ne, inArray } from "drizzle-orm";
+import { eq, desc, sql, and, asc, ne, inArray, getTableColumns } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   users, InsertUser,
@@ -152,7 +152,18 @@ export async function getEmployeeById(id: number) {
 export async function getEmployeeByUserId(userId: number) {
   const db = await getDb();
   if (!db) return undefined;
-  const result = await db.select().from(employees).where(eq(employees.userId, userId)).limit(1);
+  const result = await db.select({
+    ...getTableColumns(employees),
+    orgUnit: {
+      id: orgUnits.id,
+      name: orgUnits.name,
+      type: orgUnits.type,
+    },
+  })
+    .from(employees)
+    .leftJoin(orgUnits, eq(employees.orgUnitId, orgUnits.id))
+    .where(eq(employees.userId, userId))
+    .limit(1);
   return result[0];
 }
 
