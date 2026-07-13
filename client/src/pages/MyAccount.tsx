@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Lock, History, Monitor, Mail, CheckCircle2, AlertCircle, Clock, LogIn } from "lucide-react";
+import { Lock, Mail, CheckCircle2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
@@ -78,18 +78,10 @@ export default function MyAccount() {
       </div>
 
       <Tabs defaultValue="password">
-        <TabsList className="mb-4">
+        <TabsList className="mb-4 flex flex-wrap h-auto gap-1">
           <TabsTrigger value="password" className="flex items-center gap-1.5">
             <Lock size={14} />
             Password
-          </TabsTrigger>
-          <TabsTrigger value="history" className="flex items-center gap-1.5">
-            <History size={14} />
-            Login History
-          </TabsTrigger>
-          <TabsTrigger value="devices" className="flex items-center gap-1.5">
-            <Monitor size={14} />
-            Devices
           </TabsTrigger>
           <TabsTrigger value="email" className="flex items-center gap-1.5">
             <Mail size={14} />
@@ -176,69 +168,6 @@ export default function MyAccount() {
                 </Button>
               </form>
             )}
-          </div>
-        </TabsContent>
-
-        {/* Login History Tab */}
-        <TabsContent value="history">
-          <div className="p-5" style={cardStyle}>
-            <h4 className="text-sm font-semibold mb-4" style={{ color: "oklch(0.22 0.012 65)", fontFamily: "'DM Sans', sans-serif" }}>
-              Login History
-            </h4>
-            <div className="space-y-2">
-              {user?.lastSignedIn ? (
-                <>
-                  <div className="flex items-center gap-3 p-3 rounded-lg" style={{ border: "1px solid oklch(0.88 0.006 80)" }}>
-                    <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "oklch(0.92 0.08 145)" }}>
-                      <LogIn size={16} style={{ color: "oklch(0.42 0.18 145)" }} />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium" style={{ color: "oklch(0.22 0.012 65)" }}>
-                        {user.loginMethod === "google" ? "Google Sign-In" : "Email & Password"}
-                      </p>
-                      <p className="text-xs" style={{ color: "oklch(0.55 0.012 65)" }}>
-                        {new Date(user.lastSignedIn).toLocaleString("en-SG", {
-                          day: "numeric", month: "short", year: "numeric",
-                          hour: "2-digit", minute: "2-digit",
-                        })}
-                      </p>
-                    </div>
-                    <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: "oklch(0.92 0.08 145)", color: "oklch(0.42 0.18 145)" }}>
-                      Most Recent
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 mt-3 p-3 rounded-lg" style={{ background: "oklch(0.96 0.004 80)" }}>
-                    <Clock size={13} style={{ color: "oklch(0.65 0.01 65)", flexShrink: 0 }} />
-                    <p className="text-xs" style={{ color: "oklch(0.65 0.01 65)" }}>
-                      Account created on {new Date(user.createdAt).toLocaleDateString("en-SG", { day: "numeric", month: "long", year: "numeric" })}.
-                      Full login history tracking is not yet available.
-                    </p>
-                  </div>
-                </>
-              ) : (
-                <p className="text-sm text-center py-8" style={{ color: "oklch(0.65 0.01 65)" }}>
-                  No login history available.
-                </p>
-              )}
-            </div>
-          </div>
-        </TabsContent>
-
-        {/* Devices Tab */}
-        <TabsContent value="devices">
-          <div className="p-5" style={cardStyle}>
-            <h4 className="text-sm font-semibold mb-4" style={{ color: "oklch(0.22 0.012 65)", fontFamily: "'DM Sans', sans-serif" }}>
-              Connected Devices
-            </h4>
-            <div className="flex flex-col items-center justify-center py-10 gap-3">
-              <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: "oklch(0.94 0.004 80)" }}>
-                <Monitor size={22} style={{ color: "oklch(0.65 0.01 65)" }} />
-              </div>
-              <p className="text-sm font-medium" style={{ color: "oklch(0.45 0.012 65)" }}>Device tracking not available</p>
-              <p className="text-xs text-center max-w-xs" style={{ color: "oklch(0.65 0.01 65)" }}>
-                Session and device management will be available in a future update.
-              </p>
-            </div>
           </div>
         </TabsContent>
 
