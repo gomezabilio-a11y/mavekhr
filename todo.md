@@ -165,3 +165,11 @@
 - [x] mime-types 패키지 추가 (Content-Type 자동 감지)
 - [x] TypeScript 0 errors, Vite 빌드 성공
 - [x] 업로드/다운로드 API 실제 호출 테스트 통과 (HTTP 200)
+
+## Step 4 완료: Railway 배포 설정
+
+- [x] server/_core/env.ts: Forge API 변수 optional 처리 명확화 (서버 부팅 시 에러 없음 확인)
+- [x] Dockerfile: node:22-slim 기반, corepack pnpm, 전체 빌드, STORAGE_DIR 기본값 설정
+- [x] railway.toml: DOCKERFILE 빌더, 헬스체크(/), 재시작 정책 설정
+- [x] RAILWAY_DEPLOY.md: 환경변수 목록, Persistent Volume 설정, 배포 순서, 트러블슈팅 가이드
+- [x] TypeScript 0 errors, Vite 빌드 성공 (93.4kb server bundle)
