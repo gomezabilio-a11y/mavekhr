@@ -140,26 +140,18 @@ export default function AdminEmployeeDocuments({ employee, onClose }: Props) {
                 </div>
                 <div className="flex items-center gap-1">
                   {doc.fileUrl && (
-                    <button
-                      onClick={async () => {
-                        setDownloadingDocId(doc.id);
-                        try {
-                          const result = await utils.client.document.getDownloadUrl.query({ fileUrl: doc.fileUrl });
-                          window.open(result.downloadUrl, "_blank");
-                        } catch (err: any) {
-                          toast.error(err.message ?? "Failed to download");
-                        } finally {
-                          setDownloadingDocId(null);
-                        }
-                      }}
-                      disabled={downloadingDocId === doc.id}
-                      className="p-1.5 rounded-lg hover:bg-slate-100 disabled:opacity-50" title="Download">
-                      {downloadingDocId === doc.id ? (
-                        <Loader2 size={14} className="text-slate-500 animate-spin" />
-                      ) : (
-                        <Download size={14} className="text-slate-500" />
-                      )}
-                    </button>
+                    <a
+                      href={doc.fileUrl.startsWith("/manus-storage/")
+                        ? doc.fileUrl.replace("/manus-storage/", "/api/download/")
+                        : doc.fileUrl.startsWith("/api/download/")
+                          ? doc.fileUrl
+                          : `/api/download/${doc.fileUrl.replace(/^.*\/manus-storage\//, "")}`
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-1.5 rounded-lg hover:bg-slate-100 inline-flex items-center" title="Download">
+                      <Download size={14} className="text-slate-500" />
+                    </a>
                   )}
                   <button
                     onClick={() => { if (confirm("Delete this document?")) deleteMutation.mutate({ id: doc.id }); }}
