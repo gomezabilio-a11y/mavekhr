@@ -126,9 +126,17 @@ async function startServer() {
       }
       const contentType = s3Response.headers.get("content-type") ?? "application/octet-stream";
       const contentLength = s3Response.headers.get("content-length");
-      const fileName = fileKey.split("/").pop() ?? "download";
+      // Use original filename from query param if provided, otherwise fall back to key basename
+      const queryFilename = req.query.filename as string | undefined;
+      const displayName = queryFilename
+        ? decodeURIComponent(queryFilename)
+        : (fileKey.split("/").pop() ?? "download");
       res.setHeader("Content-Type", contentType);
-      res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+      // RFC 5987 encoding for Unicode filenames (Korean, etc.)
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${encodeURIComponent(displayName)}"; filename*=UTF-8''${encodeURIComponent(displayName)}`
+      );
       if (contentLength) res.setHeader("Content-Length", contentLength);
       res.setHeader("Cache-Control", "no-store");
       if (s3Response.body) {
