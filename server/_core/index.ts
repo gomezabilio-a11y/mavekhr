@@ -92,11 +92,11 @@ async function startServer() {
       // Update lastSignedIn
       await db.update(users).set({ lastSignedIn: new Date() }).where(eq(users.id, user.id));
 
-      // Issue session token (same mechanism as OAuth)
+      // Issue session token (DB-based auth)
       const token = await sdk.signSession({
-        openId: user.openId,
-        appId: process.env.VITE_APP_ID ?? "hr-portal",
-        name: user.name ?? email,
+        userId: String(user.id),
+        email: user.email ?? email,
+        role: user.role ?? "user",
       });
 
       const cookieOptions = getSessionCookieOptions(req);
