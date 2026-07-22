@@ -70,7 +70,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* Logo area */}
         <div className="flex items-center gap-2 px-3 py-4 border-b" style={{ borderColor: "oklch(0.22 0.022 250)" }}>
           <div className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0 bg-white flex items-center justify-center">
-            <img src="/manus-storage/mavek-logo-small_b1650612.png" alt="Mavek" className="w-7 h-7 object-contain" />
+            <img src="/api/download/mavek-logo-small_b1650612.png" alt="Mavek" className="w-7 h-7 object-contain" />
           </div>
           {sidebarOpen && (
             <div>

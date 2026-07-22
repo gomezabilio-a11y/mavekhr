@@ -121,7 +121,7 @@ export default function Layout({ children }: LayoutProps) {
       <div className="flex items-center gap-3 px-5 py-5 border-b" style={{ borderColor: "oklch(0.28 0.02 250)" }}>
         <div className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0 bg-white/10 flex items-center justify-center">
           <img
-            src="/manus-storage/mavek-logo-small_b1650612.png"
+            src="/api/download/mavek-logo-small_b1650612.png"
             alt="Mavek"
             className="w-6 h-6 object-contain"
             onError={(e) => {

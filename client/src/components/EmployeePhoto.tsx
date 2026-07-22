@@ -1,9 +1,6 @@
 /**
- * EmployeePhoto.tsx — Resolves /manus-storage/ paths to presigned URLs
- * Uses tRPC to get a direct CloudFront presigned URL, bypassing the 307 redirect
- * which can fail in some browser/proxy environments.
+ * EmployeePhoto.tsx — Renders employee photos from /api/download/ paths
  */
-import { trpc } from "@/lib/trpc";
 
 interface EmployeePhotoProps {
   photoUrl: string | null | undefined;
@@ -22,14 +19,11 @@ export default function EmployeePhoto({
 }: EmployeePhotoProps) {
   const sizeClass = size === "sm" ? "w-7 h-7 text-xs" : size === "lg" ? "w-16 h-16 text-lg" : "w-8 h-8 text-xs";
 
-  // Only fetch presigned URL if photoUrl is a /manus-storage/ path
-  const isStoragePath = !!photoUrl && photoUrl.startsWith("/manus-storage/");
-  const { data } = trpc.employee.getPhotoUrl.useQuery(
-    { storagePath: photoUrl ?? "" },
-    { enabled: isStoragePath, staleTime: 1000 * 60 * 50 } // cache for 50 min (presigned URLs expire in ~1hr)
-  );
-
-  const resolvedUrl = isStoragePath ? data?.url : photoUrl;
+  // Convert /manus-storage/ paths to /api/download/ paths
+  let resolvedUrl = photoUrl;
+  if (photoUrl?.startsWith("/manus-storage/")) {
+    resolvedUrl = photoUrl.replace("/manus-storage/", "/api/download/");
+  }
 
   return (
     <div

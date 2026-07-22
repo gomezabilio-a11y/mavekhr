@@ -550,13 +550,15 @@ export const appRouter = router({
     getDownloadUrl: protectedProcedure
       .input(z.object({ fileUrl: z.string() }))
       .query(async ({ input }) => {
-        // Extract the file key from the /manus-storage/{key} URL
-        const match = input.fileUrl.match(/\/manus-storage\/(.+)$/);
-        if (!match || !match[1]) {
+        // Support both /manus-storage/{key} and /api/download/{key} paths
+        let fileKey: string | null = null;
+        const storageMatch = input.fileUrl.match(/\/manus-storage\/(.+)$/);
+        const downloadMatch = input.fileUrl.match(/\/api\/download\/(.+)$/);
+        if (storageMatch?.[1]) fileKey = storageMatch[1];
+        else if (downloadMatch?.[1]) fileKey = downloadMatch[1];
+        if (!fileKey) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid file URL" });
         }
-        const fileKey = match[1];
-        // Return the /api/download/{fileKey} URL
         return { downloadUrl: `/api/download/${fileKey}` };
       }),
   }),
