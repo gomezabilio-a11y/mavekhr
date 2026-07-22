@@ -155,3 +155,13 @@
   - [x] TypeScript 0 errors, Vite 빌드 성공 (1787 modules)
 - [ ] Step 3: Forge API 스토리지 → AWS S3/Cloudflare R2 교체
 - [ ] Step 4: Railway 배포 설정
+
+## Step 3 완료: Forge API 스토리지 → 로컬 디스크 교체
+
+- [x] server/storage.ts: Forge API presign/S3 PUT 제거, 로컬 디스크 fs.writeFileSync/storageResolve로 교체
+- [x] server/_core/storageProxy.ts: Forge API 프록시 제거, 로컬 디스크 파일 서빙으로 교체 (/manus-storage/* 하위 호환 유지)
+- [x] server/_core/index.ts: /api/download 엔드포인트를 fs.createReadStream 기반으로 교체 (Forge 제거)
+- [x] server/_core/env.ts: 스토리지용 forgeApiUrl/forgeApiKey 제거 (LLM/이미지/음성 등 다른 Forge 기능은 유지)
+- [x] mime-types 패키지 추가 (Content-Type 자동 감지)
+- [x] TypeScript 0 errors, Vite 빌드 성공
+- [x] 업로드/다운로드 API 실제 호출 테스트 통과 (HTTP 200)

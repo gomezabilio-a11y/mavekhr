@@ -1,98 +1,92 @@
-// Preconfigured storage helpers for Manus WebDev templates
-// Uploads via Forge Server presigned URL to S3 (PUT direct).
-// Downloads return /api/download/{key} paths served via 307 redirect.
+/**
+ * Local disk storage helpers.
+ *
+ * Files are written to STORAGE_DIR (env: STORAGE_DIR, default: /app/storage on Railway,
+ * ./uploads in local dev). The directory is created on first use.
+ *
+ * Public access is served via GET /api/download/:key(*) in index.ts.
+ * storagePut  → writes file to disk, returns { key, url: "/api/download/<key>" }
+ * storageGet  → returns { key, url: "/api/download/<key>" }  (no external call needed)
+ */
 
-import { ENV } from "./_core/env";
+import fs from "fs";
+import path from "path";
 
-function getForgeConfig() {
-  const forgeUrl = ENV.forgeApiUrl;
-  const forgeKey = ENV.forgeApiKey;
+/**
+ * Resolve the root storage directory.
+ * Priority: STORAGE_DIR env → /app/storage (Railway) → <project-root>/uploads (local dev)
+ */
+function getStorageDir(): string {
+  if (process.env.STORAGE_DIR) return process.env.STORAGE_DIR;
+  // On Railway the working directory is /app; use a persistent volume mount there.
+  if (process.env.RAILWAY_ENVIRONMENT) return "/app/storage";
+  // Local development: store next to the project root
+  return path.resolve(process.cwd(), "uploads");
+}
 
-  if (!forgeUrl || !forgeKey) {
-    throw new Error(
-      "Storage config missing: set BUILT_IN_FORGE_API_URL and BUILT_IN_FORGE_API_KEY",
-    );
+function ensureDir(dir: string): void {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
   }
-
-  return { forgeUrl: forgeUrl.replace(/\/+$/, ""), forgeKey };
 }
 
 function normalizeKey(relKey: string): string {
-  return relKey.replace(/^\/+/, "");
+  // Strip leading slashes and prevent path traversal
+  return relKey.replace(/^\/+/, "").replace(/\.\./g, "_");
 }
 
-function appendHashSuffix(relKey: string): string {
-  const hash = crypto.randomUUID().replace(/-/g, "").slice(0, 8);
-  const lastDot = relKey.lastIndexOf(".");
-  if (lastDot === -1) return `${relKey}_${hash}`;
-  return `${relKey.slice(0, lastDot)}_${hash}${relKey.slice(lastDot)}`;
-}
-
+/**
+ * Write data to local disk.
+ * @param relKey  Relative file key, e.g. "employee-photos/abc123.jpg"
+ * @param data    Buffer, Uint8Array, or string content
+ * @param _contentType  Ignored (kept for API compatibility)
+ * @returns { key, url } where url is the /api/download/<key> path
+ */
 export async function storagePut(
   relKey: string,
   data: Buffer | Uint8Array | string,
-  contentType = "application/octet-stream",
+  _contentType = "application/octet-stream",
 ): Promise<{ key: string; url: string }> {
-  const { forgeUrl, forgeKey } = getForgeConfig();
-  // Use the key as-is (callers are responsible for generating safe keys)
   const key = normalizeKey(relKey);
+  const storageDir = getStorageDir();
+  const filePath = path.join(storageDir, key);
 
-  // 1. Get presigned PUT URL from Forge
-  const presignUrl = new URL("v1/storage/presign/put", forgeUrl + "/");
-  presignUrl.searchParams.set("path", key);
+  // Ensure the subdirectory exists (e.g. employee-photos/)
+  ensureDir(path.dirname(filePath));
 
-  const presignResp = await fetch(presignUrl, {
-    headers: { Authorization: `Bearer ${forgeKey}` },
-  });
-
-  if (!presignResp.ok) {
-    const msg = await presignResp.text().catch(() => presignResp.statusText);
-    throw new Error(`Storage presign failed (${presignResp.status}): ${msg}`);
-  }
-
-  const { url: s3Url } = (await presignResp.json()) as { url: string };
-  if (!s3Url) throw new Error("Forge returned empty presign URL");
-
-  // 2. PUT file directly to S3
-  const blob =
+  const buffer =
     typeof data === "string"
-      ? new Blob([data], { type: contentType })
-      : new Blob([data as any], { type: contentType });
+      ? Buffer.from(data, "utf-8")
+      : Buffer.from(data as Uint8Array);
 
-  const uploadResp = await fetch(s3Url, {
-    method: "PUT",
-    headers: { "Content-Type": contentType },
-    body: blob,
-  });
-
-  if (!uploadResp.ok) {
-    throw new Error(`Storage upload to S3 failed (${uploadResp.status})`);
-  }
+  fs.writeFileSync(filePath, buffer);
 
   return { key, url: `/api/download/${key}` };
 }
 
+/**
+ * Get the download URL for a stored file.
+ * No external call needed — just returns the local download path.
+ */
 export async function storageGet(relKey: string): Promise<{ key: string; url: string }> {
   const key = normalizeKey(relKey);
   return { key, url: `/api/download/${key}` };
 }
 
-export async function storageGetSignedUrl(relKey: string): Promise<string> {
-  const { forgeUrl, forgeKey } = getForgeConfig();
+/**
+ * Returns the absolute filesystem path for a given key.
+ * Used internally by the /api/download route to serve the file.
+ */
+export function storageResolve(relKey: string): string {
   const key = normalizeKey(relKey);
+  return path.join(getStorageDir(), key);
+}
 
-  const getUrl = new URL("v1/storage/presign/get", forgeUrl + "/");
-  getUrl.searchParams.set("path", key);
-
-  const resp = await fetch(getUrl, {
-    headers: { Authorization: `Bearer ${forgeKey}` },
-  });
-
-  if (!resp.ok) {
-    const msg = await resp.text().catch(() => resp.statusText);
-    throw new Error(`Storage signed URL failed (${resp.status}): ${msg}`);
-  }
-
-  const { url } = (await resp.json()) as { url: string };
-  return url;
+/**
+ * Kept for API compatibility with legacy callers that expected a signed URL.
+ * Now simply returns the local /api/download/<key> path.
+ */
+export async function storageGetSignedUrl(relKey: string): Promise<string> {
+  const key = normalizeKey(relKey);
+  return `/api/download/${key}`;
 }

@@ -8,7 +8,10 @@ import { registerStorageProxy } from "./storageProxy";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
-import { storagePut, storageGetSignedUrl } from "../storage";
+import { storagePut, storageResolve } from "../storage";
+import fs from "fs";
+import path from "path";
+import mime from "mime-types";
 import bcrypt from "bcryptjs";
 import { getDb } from "../db";
 import { users, employees } from "../../drizzle/schema";
@@ -109,43 +112,42 @@ async function startServer() {
   });
 
   // ── File download endpoint ───────────────────────────────────────────────────
-  app.get("/api/download/:fileKey(*)", async (req, res) => {
+  app.get("/api/download/:fileKey(*)", (req, res) => {
     try {
-      // Decode URI component to handle any percent-encoded characters in the key
+      // Decode URI component to handle percent-encoded characters in the key
       const fileKey = decodeURIComponent(req.params.fileKey ?? "");
       if (!fileKey) {
         res.status(400).json({ error: "Missing file key" });
         return;
       }
-      const signedUrl = await storageGetSignedUrl(fileKey);
-      // Stream the file directly to avoid cross-origin redirect issues
-      const s3Response = await fetch(signedUrl);
-      if (!s3Response.ok) {
-        res.status(502).json({ error: "Failed to fetch file from storage" });
+
+      const filePath = storageResolve(fileKey);
+
+      if (!fs.existsSync(filePath)) {
+        res.status(404).json({ error: "File not found" });
         return;
       }
-      const contentType = s3Response.headers.get("content-type") ?? "application/octet-stream";
-      const contentLength = s3Response.headers.get("content-length");
+
+      const stat = fs.statSync(filePath);
+      const contentType =
+        (mime.lookup(filePath) as string | false) || "application/octet-stream";
+
       // Use original filename from query param if provided, otherwise fall back to key basename
       const queryFilename = req.query.filename as string | undefined;
       const displayName = queryFilename
         ? decodeURIComponent(queryFilename)
-        : (fileKey.split("/").pop() ?? "download");
+        : (path.basename(filePath));
+
       res.setHeader("Content-Type", contentType);
       // RFC 5987 encoding for Unicode filenames (Korean, etc.)
       res.setHeader(
         "Content-Disposition",
         `attachment; filename="${encodeURIComponent(displayName)}"; filename*=UTF-8''${encodeURIComponent(displayName)}`
       );
-      if (contentLength) res.setHeader("Content-Length", contentLength);
+      res.setHeader("Content-Length", stat.size);
       res.setHeader("Cache-Control", "no-store");
-      if (s3Response.body) {
-        const { Readable } = await import("stream");
-        Readable.fromWeb(s3Response.body as any).pipe(res);
-      } else {
-        const buffer = await s3Response.arrayBuffer();
-        res.end(Buffer.from(buffer));
-      }
+
+      fs.createReadStream(filePath).pipe(res);
     } catch (err: any) {
       console.error("[Download] Failed:", err);
       res.status(500).json({ error: err.message ?? "Download failed" });

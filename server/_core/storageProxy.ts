@@ -1,63 +1,50 @@
+/**
+ * Storage proxy: backward-compatibility route for /manus-storage/* URLs.
+ *
+ * Old Forge-era URLs stored in the DB look like /manus-storage/<key>.
+ * This handler rewrites them to serve from local disk via the same
+ * storageResolve() path used by /api/download/*.
+ *
+ * New uploads always return /api/download/<key> directly, so this
+ * handler is only needed for legacy data already in the database.
+ */
+
 import type { Express } from "express";
-import { ENV } from "./env";
+import fs from "fs";
+import path from "path";
+import mime from "mime-types";
+import { storageResolve } from "../storage";
 
 export function registerStorageProxy(app: Express) {
-  app.get("/manus-storage/*", async (req, res) => {
+  app.get("/manus-storage/*", (req, res) => {
     const key = (req.params as Record<string, string>)[0];
     if (!key) {
       res.status(400).send("Missing storage key");
       return;
     }
 
-    if (!ENV.forgeApiUrl || !ENV.forgeApiKey) {
-      res.status(500).send("Storage proxy not configured");
-      return;
-    }
-
     try {
-      const forgeUrl = new URL(
-        "v1/storage/presign/get",
-        ENV.forgeApiUrl.replace(/\/+$/, "") + "/",
-      );
-      forgeUrl.searchParams.set("path", key);
+      const filePath = storageResolve(key);
 
-      const forgeResp = await fetch(forgeUrl, {
-        headers: { Authorization: `Bearer ${ENV.forgeApiKey}` },
-      });
-
-      if (!forgeResp.ok) {
-        const body = await forgeResp.text().catch(() => "");
-        console.error(`[StorageProxy] forge error: ${forgeResp.status} ${body}`);
-        res.status(502).send("Storage backend error");
+      if (!fs.existsSync(filePath)) {
+        // File not on local disk — return 404 (legacy Forge files won't be available)
+        res.status(404).send("File not found");
         return;
       }
 
-      const { url } = (await forgeResp.json()) as { url: string };
-      if (!url) {
-        res.status(502).send("Empty signed URL from backend");
-        return;
-      }
+      const stat = fs.statSync(filePath);
+      const contentType =
+        (mime.lookup(filePath) as string | false) || "application/octet-stream";
 
-      // Pipe the image content directly to avoid CORS issues with 307 redirects
-      const imageResp = await fetch(url);
-      if (!imageResp.ok) {
-        res.status(502).send("Failed to fetch image from storage");
-        return;
-      }
+      res.setHeader("Content-Type", contentType);
+      res.setHeader("Content-Length", stat.size);
+      res.setHeader("Cache-Control", "public, max-age=3600");
+      res.setHeader("Access-Control-Allow-Origin", "*");
 
-      const contentType = imageResp.headers.get("content-type") || "application/octet-stream";
-      const contentLength = imageResp.headers.get("content-length");
-
-      res.set("Content-Type", contentType);
-      res.set("Cache-Control", "public, max-age=3600");
-      res.set("Access-Control-Allow-Origin", "*");
-      if (contentLength) res.set("Content-Length", contentLength);
-
-      const buffer = await imageResp.arrayBuffer();
-      res.send(Buffer.from(buffer));
+      fs.createReadStream(filePath).pipe(res);
     } catch (err) {
       console.error("[StorageProxy] failed:", err);
-      res.status(502).send("Storage proxy error");
+      res.status(500).send("Storage error");
     }
   });
 }
