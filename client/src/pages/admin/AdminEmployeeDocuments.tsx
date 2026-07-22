@@ -139,25 +139,22 @@ export default function AdminEmployeeDocuments({ employee, onClose }: Props) {
                   </p>
                 </div>
                 <div className="flex items-center gap-1">
-                  {doc.fileUrl && (() => {
-                    // Build /api/download/ URL with original filename as query param
-                    let key = doc.fileUrl;
-                    if (key.startsWith("/manus-storage/")) key = key.replace("/manus-storage/", "/api/download/");
-                    else if (!key.startsWith("/api/download/")) key = `/api/download/${key.replace(/^.*\/manus-storage\//, "")}`;
-                    // Append original document name as filename hint
-                    const ext = doc.fileUrl.split(".").pop() ?? "pdf";
-                    const originalName = doc.name.endsWith(`.${ext}`) ? doc.name : `${doc.name}.${ext}`;
-                    const downloadUrl = `${key}?filename=${encodeURIComponent(originalName)}`;
-                    return (
-                      <a
-                        href={downloadUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-1.5 rounded-lg hover:bg-slate-100 inline-flex items-center" title="Download">
-                        <Download size={14} className="text-slate-500" />
-                      </a>
-                    );
-                  })()}
+                  {doc.fileUrl && (
+                    <a
+                      href={(() => {
+                        let key = doc.fileUrl!;
+                        if (key.startsWith("/manus-storage/")) key = key.replace("/manus-storage/", "/api/download/");
+                        else if (!key.startsWith("/api/download/")) key = `/api/download/${key.replace(/^.*\/manus-storage\//, "")}`;
+                        const ext = doc.fileUrl!.split(".").pop() ?? "pdf";
+                        const originalName = doc.name.endsWith(`.${ext}`) ? doc.name : `${doc.name}.${ext}`;
+                        return `${key}?filename=${encodeURIComponent(originalName)}`;
+                      })()}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-1.5 rounded-lg hover:bg-slate-100 inline-flex items-center" title="Download">
+                      <Download size={14} className="text-slate-500" />
+                    </a>
+                  )}
                   <button
                     onClick={() => { if (confirm("Delete this document?")) deleteMutation.mutate({ id: doc.id }); }}
                     className="p-1.5 rounded-lg hover:bg-red-50" title="Delete">

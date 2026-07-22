@@ -471,7 +471,14 @@ export default function MyInformation() {
                     </div>
                     {doc.fileUrl ? (
                       <a
-                        href={doc.fileUrl}
+                        href={(() => {
+                          let key = doc.fileUrl;
+                          if (key.startsWith("/manus-storage/")) key = key.replace("/manus-storage/", "/api/download/");
+                          else if (!key.startsWith("/api/download/")) key = `/api/download/${key.replace(/^.*\/manus-storage\//, "")}`;
+                          const ext = doc.fileUrl.split(".").pop() ?? "pdf";
+                          const originalName = doc.name.endsWith(`.${ext}`) ? doc.name : `${doc.name}.${ext}`;
+                          return `${key}?filename=${encodeURIComponent(originalName)}`;
+                        })()}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors hover:bg-blue-50"
