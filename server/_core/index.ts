@@ -111,7 +111,8 @@ async function startServer() {
   // ── File download endpoint ───────────────────────────────────────────────────
   app.get("/api/download/:fileKey(*)", async (req, res) => {
     try {
-      const fileKey = req.params.fileKey;
+      // Decode URI component to handle any percent-encoded characters in the key
+      const fileKey = decodeURIComponent(req.params.fileKey ?? "");
       if (!fileKey) {
         res.status(400).json({ error: "Missing file key" });
         return;
@@ -152,10 +153,13 @@ async function startServer() {
         return;
       }
       const buffer = Buffer.from(base64, "base64");
-      const ext = fileName?.split(".").pop() ?? "pdf";
-      const key = `employee-documents/${Date.now()}-${(fileName ?? "document").replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+      // Use UUID-based key to avoid encoding issues with Korean/special characters
+      const ext = (fileName ?? "document").split(".").pop()?.replace(/[^a-zA-Z0-9]/g, "") ?? "pdf";
+      const uuid = crypto.randomUUID().replace(/-/g, "");
+      const key = `employee-documents/${Date.now()}-${uuid}.${ext}`;
       const { url } = await storagePut(key, buffer, mimeType);
-      res.json({ url });
+      // Return both the storage URL and the original filename for display
+      res.json({ url, originalFileName: fileName ?? "document" });
     } catch (err: any) {
       console.error("[Upload] Document upload failed:", err);
       res.status(500).json({ error: err.message ?? "Upload failed" });
@@ -172,8 +176,9 @@ async function startServer() {
         return;
       }
       const buffer = Buffer.from(base64, "base64");
-      const ext = mimeType.split("/")[1] ?? "jpg";
-      const key = `employee-photos/${Date.now()}-${(fileName ?? "photo").replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+      const ext = mimeType.split("/")[1]?.replace(/[^a-zA-Z0-9]/g, "") ?? "jpg";
+      const uuid = crypto.randomUUID().replace(/-/g, "");
+      const key = `employee-photos/${Date.now()}-${uuid}.${ext}`;
       const { url } = await storagePut(key, buffer, mimeType);
       res.json({ url });
     } catch (err: any) {
