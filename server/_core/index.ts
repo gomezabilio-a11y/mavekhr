@@ -8,7 +8,7 @@ import { registerStorageProxy } from "./storageProxy";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
-import { storagePut } from "../storage";
+import { storagePut, storageGetSignedUrl } from "../storage";
 import bcrypt from "bcryptjs";
 import { getDb } from "../db";
 import { users, employees } from "../../drizzle/schema";
@@ -105,6 +105,22 @@ async function startServer() {
     } catch (err: any) {
       console.error("[Login] Error:", err);
       res.status(500).json({ error: "Login failed" });
+    }
+  });
+
+  // ── File download endpoint ───────────────────────────────────────────────────
+  app.get("/api/download/:fileKey(*)", async (req, res) => {
+    try {
+      const fileKey = req.params.fileKey;
+      if (!fileKey) {
+        res.status(400).json({ error: "Missing file key" });
+        return;
+      }
+      const signedUrl = await storageGetSignedUrl(fileKey);
+      res.redirect(307, signedUrl);
+    } catch (err: any) {
+      console.error("[Download] Failed:", err);
+      res.status(500).json({ error: err.message ?? "Download failed" });
     }
   });
 

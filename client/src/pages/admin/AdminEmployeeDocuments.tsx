@@ -144,8 +144,8 @@ export default function AdminEmployeeDocuments({ employee, onClose }: Props) {
                       onClick={async () => {
                         setDownloadingDocId(doc.id);
                         try {
-                          const result = await utils.client.document.getSignedUrl.query({ fileUrl: doc.fileUrl });
-                          window.open(result.signedUrl, "_blank");
+                          const result = await utils.client.document.getDownloadUrl.query({ fileUrl: doc.fileUrl });
+                          window.open(result.downloadUrl, "_blank");
                         } catch (err: any) {
                           toast.error(err.message ?? "Failed to download");
                         } finally {

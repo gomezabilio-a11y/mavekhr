@@ -546,8 +546,8 @@ export const appRouter = router({
     delete: adminProcedure
       .input(z.object({ id: z.number() }))
       .mutation(({ input }) => deleteEmployeeDocument(input.id)),
-    // Get signed URL for downloading a document
-    getSignedUrl: protectedProcedure
+    // Get download URL for a document
+    getDownloadUrl: protectedProcedure
       .input(z.object({ fileUrl: z.string() }))
       .query(async ({ input }) => {
         // Extract the file key from the /manus-storage/{key} URL
@@ -556,13 +556,8 @@ export const appRouter = router({
           throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid file URL" });
         }
         const fileKey = match[1];
-        try {
-          const signedUrl = await storageGetSignedUrl(fileKey);
-          return { signedUrl };
-        } catch (err) {
-          console.error("[Document] Failed to get signed URL:", err);
-          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to generate download URL" });
-        }
+        // Return the /api/download/{fileKey} URL
+        return { downloadUrl: `/api/download/${fileKey}` };
       }),
   }),
 
