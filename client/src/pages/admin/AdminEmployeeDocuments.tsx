@@ -18,6 +18,7 @@ export default function AdminEmployeeDocuments({ employee, onClose }: Props) {
   const [uploading, setUploading] = useState(false);
   const [fileUrl, setFileUrl] = useState("");
   const [fileName, setFileName] = useState("");
+  const [downloadingDocId, setDownloadingDocId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const utils = trpc.useUtils();
 
@@ -139,10 +140,26 @@ export default function AdminEmployeeDocuments({ employee, onClose }: Props) {
                 </div>
                 <div className="flex items-center gap-1">
                   {doc.fileUrl && (
-                    <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer"
-                      className="p-1.5 rounded-lg hover:bg-slate-100" title="Download">
-                      <Download size={14} className="text-slate-500" />
-                    </a>
+                    <button
+                      onClick={async () => {
+                        setDownloadingDocId(doc.id);
+                        try {
+                          const result = await utils.client.document.getSignedUrl.query({ fileUrl: doc.fileUrl });
+                          window.open(result.signedUrl, "_blank");
+                        } catch (err: any) {
+                          toast.error(err.message ?? "Failed to download");
+                        } finally {
+                          setDownloadingDocId(null);
+                        }
+                      }}
+                      disabled={downloadingDocId === doc.id}
+                      className="p-1.5 rounded-lg hover:bg-slate-100 disabled:opacity-50" title="Download">
+                      {downloadingDocId === doc.id ? (
+                        <Loader2 size={14} className="text-slate-500 animate-spin" />
+                      ) : (
+                        <Download size={14} className="text-slate-500" />
+                      )}
+                    </button>
                   )}
                   <button
                     onClick={() => { if (confirm("Delete this document?")) deleteMutation.mutate({ id: doc.id }); }}
