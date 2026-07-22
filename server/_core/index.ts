@@ -117,7 +117,26 @@ async function startServer() {
         return;
       }
       const signedUrl = await storageGetSignedUrl(fileKey);
-      res.redirect(307, signedUrl);
+      // Stream the file directly to avoid cross-origin redirect issues
+      const s3Response = await fetch(signedUrl);
+      if (!s3Response.ok) {
+        res.status(502).json({ error: "Failed to fetch file from storage" });
+        return;
+      }
+      const contentType = s3Response.headers.get("content-type") ?? "application/octet-stream";
+      const contentLength = s3Response.headers.get("content-length");
+      const fileName = fileKey.split("/").pop() ?? "download";
+      res.setHeader("Content-Type", contentType);
+      res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+      if (contentLength) res.setHeader("Content-Length", contentLength);
+      res.setHeader("Cache-Control", "no-store");
+      if (s3Response.body) {
+        const { Readable } = await import("stream");
+        Readable.fromWeb(s3Response.body as any).pipe(res);
+      } else {
+        const buffer = await s3Response.arrayBuffer();
+        res.end(Buffer.from(buffer));
+      }
     } catch (err: any) {
       console.error("[Download] Failed:", err);
       res.status(500).json({ error: err.message ?? "Download failed" });
