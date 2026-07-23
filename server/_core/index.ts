@@ -61,9 +61,11 @@ async function runMigrations() {
     await migrate(db, { migrationsFolder });
     console.log("[Migration] Migrations completed successfully");
   } catch (err: any) {
-    // errno 1050 = ER_TABLE_EXISTS_ERROR: tables already exist from a previous
-    // deployment that ran drizzle-kit push directly. Safe to ignore — the schema
-    // is already up to date. All other errors are fatal.
+    // Never crash the server due to migration errors.
+    // Common cases:
+    //   errno 1050 / ER_TABLE_EXISTS_ERROR — tables already exist (drizzle-kit push was
+    //     used previously and __drizzle_migrations tracking table is absent). Safe to ignore.
+    //   Any other error — log it as a warning so ops can investigate, but keep serving.
     const isTableExists =
       err?.errno === 1050 ||
       err?.code === "ER_TABLE_EXISTS_ERROR" ||
@@ -71,11 +73,11 @@ async function runMigrations() {
 
     if (isTableExists) {
       console.warn(
-        "[Migration] Table-already-exists detected — schema is up to date, skipping migration."
+        "[Migration] Table-already-exists — schema is current, skipping migration."
       );
     } else {
-      console.error("[Migration] Failed:", err);
-      throw err; // Abort for all other errors
+      // Log but do NOT re-throw: server stays up regardless of migration outcome.
+      console.error("[Migration] Warning: migration encountered an error (server will continue):", err?.message ?? err);
     }
   } finally {
     await connection.end();
@@ -269,10 +271,8 @@ async function startServer() {
     // Run DB migrations after port is open so Railway health checks pass
     // during the migration window. Requests will be served normally;
     // DB-dependent routes will fail gracefully until migrations complete.
-    runMigrations().catch((err) => {
-      console.error("[Migration] Fatal error — shutting down:", err);
-      process.exit(1);
-    });
+    // runMigrations() is fully non-fatal — errors are logged as warnings inside.
+    runMigrations();
   });
 }
 
