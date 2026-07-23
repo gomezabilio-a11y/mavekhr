@@ -69,9 +69,6 @@ async function runMigrations() {
 }
 
 async function startServer() {
-  // Run DB migrations before starting the server
-  await runMigrations();
-
   const app = express();
   const server = createServer(app);
   // Configure body parser with larger size limit for file uploads
@@ -252,6 +249,13 @@ async function startServer() {
 
   server.listen(port, () => {
     console.log(`Server running on http://localhost:${port}/`);
+    // Run DB migrations after port is open so Railway health checks pass
+    // during the migration window. Requests will be served normally;
+    // DB-dependent routes will fail gracefully until migrations complete.
+    runMigrations().catch((err) => {
+      console.error("[Migration] Fatal error — shutting down:", err);
+      process.exit(1);
+    });
   });
 }
 
