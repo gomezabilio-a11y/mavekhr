@@ -14,6 +14,9 @@ import path from "path";
 import mime from "mime-types";
 import bcrypt from "bcryptjs";
 import { getDb } from "../db";
+import { migrate } from "drizzle-orm/mysql2/migrator";
+import { drizzle } from "drizzle-orm/mysql2";
+import mysql from "mysql2/promise";
 import { users, employees } from "../../drizzle/schema";
 import { eq } from "drizzle-orm";
 import { sdk } from "./sdk";
@@ -39,7 +42,36 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
   throw new Error(`No available port found starting from ${startPort}`);
 }
 
+async function runMigrations() {
+  if (!process.env.DATABASE_URL) {
+    console.warn("[Migration] DATABASE_URL not set — skipping migrations");
+    return;
+  }
+  // Use a dedicated connection for migrations (not the shared pool)
+  const connection = await mysql.createConnection(process.env.DATABASE_URL);
+  try {
+    const db = drizzle(connection);
+    // migrationsFolder: drizzle SQL files live at <project-root>/drizzle/
+    // process.cwd() is the project root in both dev (tsx) and prod (node dist/index.js
+    // started from /app in Docker). Override with DRIZZLE_MIGRATIONS_DIR if needed.
+    const migrationsFolder =
+      process.env.DRIZZLE_MIGRATIONS_DIR ??
+      path.join(process.cwd(), "drizzle");
+    console.log(`[Migration] Running migrations from: ${migrationsFolder}`);
+    await migrate(db, { migrationsFolder });
+    console.log("[Migration] Migrations completed successfully");
+  } catch (err) {
+    console.error("[Migration] Failed:", err);
+    throw err; // Abort server startup on migration failure
+  } finally {
+    await connection.end();
+  }
+}
+
 async function startServer() {
+  // Run DB migrations before starting the server
+  await runMigrations();
+
   const app = express();
   const server = createServer(app);
   // Configure body parser with larger size limit for file uploads

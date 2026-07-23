@@ -1,10 +1,14 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # MAVEK HR Portal — Railway Deployment Dockerfile
 #
-# This Dockerfile is needed because the default Manus deploy image does not
-# include the `drizzle/` migration files at runtime, which are required for
-# `pnpm db:push` and schema inspection. It also ensures the correct Node.js
-# version (22) and sets up the storage directory structure.
+# DB Migrations: drizzle-kit CLI is NOT used at runtime. Instead, the Express
+# server calls drizzle-orm/mysql2/migrator's migrate() on startup, reading SQL
+# files from /app/drizzle (copied by COPY . .). This avoids interactive prompts
+# and infinite-wait issues that drizzle-kit push causes in Docker environments.
+#
+# Railway Persistent Volume:
+#   Mount your volume at /mnt/volume/storage and set STORAGE_DIR accordingly.
+#   All uploaded employee photos and documents will be written there.
 #
 # Railway Persistent Volume:
 #   Mount your volume at /app/storage (or set STORAGE_DIR env var to override).
