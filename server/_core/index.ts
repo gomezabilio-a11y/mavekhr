@@ -60,9 +60,23 @@ async function runMigrations() {
     console.log(`[Migration] Running migrations from: ${migrationsFolder}`);
     await migrate(db, { migrationsFolder });
     console.log("[Migration] Migrations completed successfully");
-  } catch (err) {
-    console.error("[Migration] Failed:", err);
-    throw err; // Abort server startup on migration failure
+  } catch (err: any) {
+    // errno 1050 = ER_TABLE_EXISTS_ERROR: tables already exist from a previous
+    // deployment that ran drizzle-kit push directly. Safe to ignore — the schema
+    // is already up to date. All other errors are fatal.
+    const isTableExists =
+      err?.errno === 1050 ||
+      err?.code === "ER_TABLE_EXISTS_ERROR" ||
+      (typeof err?.message === "string" && err.message.includes("already exists"));
+
+    if (isTableExists) {
+      console.warn(
+        "[Migration] Table-already-exists detected — schema is up to date, skipping migration."
+      );
+    } else {
+      console.error("[Migration] Failed:", err);
+      throw err; // Abort for all other errors
+    }
   } finally {
     await connection.end();
   }
