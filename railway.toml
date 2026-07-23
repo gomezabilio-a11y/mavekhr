@@ -15,7 +15,7 @@ numReplicas = 1
 # Health check: Railway pings this endpoint to confirm the service is healthy
 # The Express server responds to GET / with the SPA shell (200 OK)
 healthcheckPath = "/"
-healthcheckTimeout = 30
+healthcheckTimeout = 60
 
 # Restart policy: restart on failure, up to 10 times
 restartPolicyType = "ON_FAILURE"
