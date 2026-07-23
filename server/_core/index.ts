@@ -100,13 +100,16 @@ async function startServer() {
   app.post("/api/auth/login", express.json(), async (req, res) => {
     try {
       const { email, password } = req.body as { email: string; password: string };
+      console.log(`[Login] Attempt: email=${email} origin=${req.headers.origin ?? 'none'} host=${req.headers.host}`);
       if (!email || !password) {
+        console.log('[Login] FAIL: missing email or password');
         res.status(400).json({ error: "Email and password are required" });
         return;
       }
 
       const db = await getDb();
       if (!db) {
+        console.log('[Login] FAIL: database not available');
         res.status(500).json({ error: "Database not available" });
         return;
       }
@@ -118,24 +121,30 @@ async function startServer() {
 
       const empRows = await db.select().from(employees).where(eq(employees.email, email)).limit(1);
       const emp = empRows[0];
+      console.log(`[Login] employees lookup: found=${!!emp} userId=${emp?.userId ?? 'none'}`);
       if (emp?.userId) {
         const userRows = await db.select().from(users).where(eq(users.id, emp.userId)).limit(1);
         user = userRows[0];
+        console.log(`[Login] users lookup via employee: found=${!!user} id=${user?.id ?? 'none'} role=${user?.role ?? 'none'}`);
       }
 
       // Fallback: look up directly in users table by email
       if (!user) {
         const userRows = await db.select().from(users).where(eq(users.email, email)).limit(1);
         user = userRows[0];
+        console.log(`[Login] users direct lookup: found=${!!user} id=${user?.id ?? 'none'} role=${user?.role ?? 'none'}`);
       }
 
       if (!user || !user.passwordHash) {
+        console.log(`[Login] FAIL 401: user=${!!user} hasPasswordHash=${!!user?.passwordHash}`);
         res.status(401).json({ error: "Invalid email or password" });
         return;
       }
 
       const valid = await bcrypt.compare(password, user.passwordHash);
+      console.log(`[Login] bcrypt.compare result: valid=${valid} userId=${user.id}`);
       if (!valid) {
+        console.log(`[Login] FAIL 401: bcrypt mismatch for userId=${user.id}`);
         res.status(401).json({ error: "Invalid email or password" });
         return;
       }
