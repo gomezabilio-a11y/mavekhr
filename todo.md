@@ -153,8 +153,8 @@
   - [x] client/src/components/DashboardLayout.tsx: startLogin() 버튼 → /login 리다이렉트
   - [x] shared/const.ts: OAUTH_STATE_COOKIE, OAuthState, encodeOAuthState, decodeOAuthState 제거
   - [x] TypeScript 0 errors, Vite 빌드 성공 (1787 modules)
-- [ ] Step 3: Forge API 스토리지 → AWS S3/Cloudflare R2 교체
-- [ ] Step 4: Railway 배포 설정
+- [x] Step 3: Forge API 스토리지 → 로컬 디스크(Railway Persistent Volume) 교체 완료
+- [x] Step 4: Railway 배포 설정 완료 (Dockerfile, railway.toml, RAILWAY_DEPLOY.md)
 
 ## Step 3 완료: Forge API 스토리지 → 로컬 디스크 교체
 
