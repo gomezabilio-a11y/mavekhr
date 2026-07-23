@@ -91,6 +91,9 @@ async function startServer() {
   registerStorageProxy(app);
   registerOAuthRoutes(app);
 
+  // ── Health check (must be first — Railway pings this before DB is ready) ────
+  app.get("/healthz", (_req, res) => res.status(200).send("OK"));
+
   // ── Email + Password Login endpoint ──────────────────────────────────────
   app.post("/api/auth/login", express.json(), async (req, res) => {
     try {
@@ -261,8 +264,8 @@ async function startServer() {
     console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
   }
 
-  server.listen(port, () => {
-    console.log(`Server running on http://localhost:${port}/`);
+  server.listen(port, "0.0.0.0", () => {
+    console.log(`Server running on http://0.0.0.0:${port}/`);
     // Run DB migrations after port is open so Railway health checks pass
     // during the migration window. Requests will be served normally;
     // DB-dependent routes will fail gracefully until migrations complete.
