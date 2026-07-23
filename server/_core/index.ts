@@ -163,8 +163,9 @@ async function startServer() {
       res.cookie(COOKIE_NAME, token, { ...cookieOptions, maxAge: 365 * 24 * 60 * 60 * 1000 });
       res.json({ success: true, role: user.role });
     } catch (err: any) {
-      console.error("[Login] Error:", err);
-      res.status(500).json({ error: "Login failed" });
+      console.error("[Login] Error:", err?.message ?? err);
+      // Temporarily expose error detail for Railway debugging — remove after diagnosis
+      res.status(500).json({ error: "Login failed", detail: err?.message ?? String(err) });
     }
   });
 
