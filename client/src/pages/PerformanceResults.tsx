@@ -323,11 +323,7 @@ function CycleDetail({ result, onBack }: { result: any; onBack: () => void }) {
                 <p className="text-2xl font-bold" style={{ color: scoreColor(peerManagerScore) }}>
                   {peerManagerScore !== null ? peerManagerScore.toFixed(2) : "—"}
                 </p>
-                {peerScore !== null && managerScore !== null && (
-                  <p className="text-xs mt-0.5" style={{ color: "oklch(0.65 0.012 65)" }}>
-                    Peer {peerScore.toFixed(2)} · Mgr {managerScore.toFixed(2)}
-                  </p>
-                )}
+
               </div>
             </div>
             {(selfScore === null || peerManagerScore === null) && (
